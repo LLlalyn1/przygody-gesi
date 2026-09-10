@@ -30,6 +30,8 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "KeyE") tryTrap();
   if (e.code === "KeyP" || e.code === "Escape") togglePause();
   if (e.code === "KeyM") toggleMute();
+  if (e.code === "Minus" || e.code === "NumpadSubtract") changeVolume(-0.1);
+  if (e.code === "Equal" || e.code === "NumpadAdd") changeVolume(0.1);
 });
 window.addEventListener("keyup", (e) => { keys[e.code] = false; });
 
@@ -39,7 +41,7 @@ let bugs = [], traps = [], poisons = [], walls = [];
 let exitDoor = { x: 360, y: 16, w: 80, h: 24, open: false };
 let level = 1, startTime = 0, elapsed = 0;
 let quackCd = 0, hurtCd = 0, quackFx = 0, muted = false;
-let levelMsg = 0;
+let levelMsg = 0, volume = 0.8, volMsg = 0, shakeT = 0, poisonSndCd = 0;
 
 function targetBugs() { return TARGETS[level] || 8; }
 function rand(a, b) { return a + Math.random() * (b - a); }
@@ -60,25 +62,30 @@ function loadSfx(name) {
     SFX[name] = a;
   } catch (e) {}
 }
-["quack", "eat", "hurt", "win", "level", "trap"].forEach(loadSfx);
+["quack", "eat", "hurt", "win", "level", "trap", "sizzle"].forEach(loadSfx);
 function beep(freq, dur, type) {
-  if (muted) return;
+  if (muted || volume <= 0) return;
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const o = audioCtx.createOscillator();
     const g = audioCtx.createGain();
     o.type = type || "square"; o.frequency.value = freq;
-    g.gain.value = 0.06;
+    g.gain.value = 0.06 * volume;
     o.connect(g); g.connect(audioCtx.destination);
     o.start(); g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
     o.stop(audioCtx.currentTime + dur);
   } catch (e) {}
 }
 function sfx(name, freq, dur, type) {
-  if (muted) return;
+  if (muted || volume <= 0) return;
   const a = SFX[name];
-  if (a) { try { a.currentTime = 0; const pr = a.play(); if (pr && pr.catch) pr.catch(() => {}); return; } catch (e) {} }
+  if (a) { try { a.volume = volume; a.currentTime = 0; const pr = a.play(); if (pr && pr.catch) pr.catch(() => {}); return; } catch (e) {} }
   beep(freq, dur, type);
+}
+function changeVolume(d) {
+  volume = Math.max(0, Math.min(1, Math.round((volume + d) * 10) / 10));
+  volMsg = 1.5;
+  if (d > 0 && volume > 0) beep(520, 0.07, "square");
 }
 function sndQuack() { sfx("quack", 300, 0.18, "sawtooth"); }
 function sndEat() { sfx("eat", 660, 0.1, "square"); }
@@ -164,7 +171,7 @@ function showMenu() {
   state = "menu";
   overlay.classList.remove("hidden");
   ovTitle.textContent = "Wielkie przygody gęsi";
-  ovText.innerHTML = "Obudziłeś się jako gęś w psychiatryku „Zofiówka”.<br>" +
+  ovText.innerHTML = "<i>„Zemsta gęsi”</i><br>Obudziłeś się jako gęś w psychiatryku „Zofiówka”.<br>" +
     "Poziomy <b>1–" + MAX_LEVEL + "</b>: owady, sanitariusze, <b>DUCH</b> i <b>BOSS-ordynator</b>. Ucieknij drzwiami.";
   btnStart.textContent = "Zacznij grę";
   recordsEl.innerHTML = rekordyHTML();
@@ -293,6 +300,8 @@ function update(dt) {
   hurtCd = Math.max(0, hurtCd - dt);
   quackFx = Math.max(0, quackFx - dt);
   levelMsg = Math.max(0, levelMsg - dt);
+  volMsg = Math.max(0, volMsg - dt);
+  shakeT = Math.max(0, shakeT - dt);
 
   let dx = joy.dx, dy = joy.dy;
   if (keys["KeyA"] || keys["ArrowLeft"]) dx -= 1;
@@ -306,9 +315,12 @@ function update(dt) {
   moveWithWalls(player, dx * 170 * running * dt, dy * 170 * running * dt);
 
   const pc = center(player);
+  let inPoison = false;
   for (const p of poisons) {
-    if (Math.hypot(pc.x - p.x, pc.y - p.y) < p.r) player.hp -= 20 * dt;
+    if (Math.hypot(pc.x - p.x, pc.y - p.y) < p.r) { player.hp -= 20 * dt; inPoison = true; }
   }
+  poisonSndCd = Math.max(0, poisonSndCd - dt);
+  if (inPoison && poisonSndCd <= 0) { sfx("sizzle", 200, 0.3, "sawtooth"); poisonSndCd = 1.0; }
 
   for (let i = bugs.length - 1; i >= 0; i--) {
     if (rectsOverlap(player, bugs[i])) {
@@ -371,6 +383,7 @@ function update(dt) {
     if (rectsOverlap(player, e) && hurtCd <= 0 && e.stun <= 0 && e.scare <= 0) {
       player.hp -= dmg;
       hurtCd = 0.9;
+      shakeT = 0.35;
       sndHurt();
     }
   }
@@ -451,12 +464,14 @@ function drawEnemy(e) {
 }
 
 function draw() {
+  ctx.save();
+  if (shakeT > 0) ctx.translate(rand(-4, 4) * shakeT * 3, rand(-4, 4) * shakeT * 3);
   ctx.fillStyle = "#1a1f2b";
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(-10, -10, W + 20, H + 20);
   ctx.fillStyle = "#151a25";
   for (let y = 0; y < H; y += 40) ctx.fillRect(0, y, W, 2);
 
-  if (state === "menu" || !player) return;
+  if (state === "menu" || !player) { ctx.restore(); return; }
 
   for (const p of poisons) {
     ctx.fillStyle = "#3d2b00";
@@ -526,7 +541,11 @@ function draw() {
   if (muted) {
     ctx.fillStyle = "#888"; ctx.font = "12px monospace"; ctx.textAlign = "right";
     ctx.fillText("wyciszone (M)", W - 10, H - 10);
+  } else if (volMsg > 0) {
+    ctx.fillStyle = "#888"; ctx.font = "12px monospace"; ctx.textAlign = "right";
+    ctx.fillText("głośność " + Math.round(volume * 100) + "% (-/+)", W - 10, H - 10);
   }
+  ctx.restore();
 }
 
 let last = performance.now();
