@@ -6,8 +6,95 @@ const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 ctx.imageSmoothingEnabled = false;
 const mascot = document.getElementById("mascot");
-const mctx = mascot ? mascot.getContext("2d") : null;
+const mctx = mascot && mascot.getContext ? mascot.getContext("2d") : null;
 if (mctx) mctx.imageSmoothingEnabled = false;
+const doll = document.getElementById("paperdoll");
+const dctx = doll && doll.getContext ? doll.getContext("2d") : null;
+if (dctx) dctx.imageSmoothingEnabled = false;
+const DOLL_NODES = [
+  { slot: "hat", label: "Głowa", x: 440, y: 62, r: 26 },
+  { slot: "scarf", label: "Szyja", x: 466, y: 142, r: 26 },
+  { slot: "duck", label: "Ciało", x: 440, y: 222, r: 26 },
+  { slot: "shoes", label: "Nogi", x: 466, y: 300, r: 26 }
+];
+// --- paper-doll: gęś na środku, linie do węzłów, klik wybiera slot ---
+function dollPartAt(x, y) {
+  const ox = 50, oy = 55;
+  if (x >= ox - 52 && x <= ox + 50 && y >= oy - 8 && y <= oy + 60) return "hat";
+  if (x >= ox + 8 && x <= ox + 52 && y >= oy + 40 && y <= oy + 140) return "scarf";
+  if (x >= ox + 40 && x <= ox + 190 && y >= oy + 130 && y <= oy + 215) return "duck";
+  if (x >= ox + 20 && x <= ox + 170 && y >= oy + 215 && y <= oy + 275) return "shoes";
+  return null;
+}
+function drawPaperdoll(t) {
+  if (!dctx) return;
+  const g = dctx, pal = bodyPal();
+  g.clearRect(0, 0, 560, 340);
+  const ox = 50, oy = 55;
+  const bob = Math.sin(t * 2) * 2;
+  const R = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), w, h); };
+  R(ox + 50, oy + 240, 16, 16, "#ff8800");
+  R(ox + 110, oy + 240, 16, 16, "#e07b00");
+  const sh = shoeFor();
+  if (sh) {
+    R(ox + 46, oy + 248, 26, 12, sh.main); R(ox + 106, oy + 248, 26, 12, sh.main);
+    R(ox + 46, oy + 258, 26, 4, sh.sole); R(ox + 106, oy + 258, 26, 4, sh.sole);
+  }
+  R(ox + 150, oy + 140, 40, 18, pal.belly);
+  R(ox + 40, oy + 130 + bob, 150, 85, pal.base);
+  R(ox + 40, oy + 190 + bob, 150, 25, pal.belly);
+  R(ox + 70, oy + 150 + bob, 80, 34, pal.wing);
+  R(ox + 8, oy + 40 + bob, 44, 100, pal.base);
+  if (BANDANAS[bandana]) { R(ox + 4, oy + 88 + bob, 52, 16, BANDANAS[bandana]); R(ox + 40, oy + 103 + bob, 12, 16, BANDANAS[bandana]); }
+  R(ox - 18, oy + 2 + bob, 68, 46, pal.base);
+  R(ox - 52, oy + 14 + bob, 34, 12, "#ff8800");
+  const blink = (t % 4) < 0.15;
+  const eyec = pal.eye, hl = pal.eye === "#ffffff" ? "#000000" : "#ffffff";
+  if (blink) R(ox + 2, oy + 12 + bob, 16, 4, eyec);
+  else { R(ox + 2, oy + 6 + bob, 16, 16, eyec); R(ox + 6, oy + 10 + bob, 5, 5, hl); }
+  drawHat(g, ox + 16, oy + 2 + bob, 2.2, hat);
+  const anchors = { hat: [ox + 16, oy + 25 + bob], scarf: [ox + 30, oy + 95 + bob], duck: [ox + 115, oy + 172 + bob], shoes: [ox + 80, oy + 252] };
+  DOLL_NODES.forEach((n) => {
+    const a = anchors[n.slot];
+    const sel = customTab === n.slot;
+    g.strokeStyle = sel ? "#58a6ff" : "#484f58"; g.lineWidth = sel ? 3 : 2;
+    g.beginPath();
+    g.moveTo(a[0], a[1]);
+    g.lineTo(a[0] + 46, n.y);
+    g.lineTo(n.x - n.r, n.y);
+    g.stroke();
+    g.beginPath(); g.arc(n.x, n.y, n.r, 0, Math.PI * 2);
+    g.fillStyle = "#0d1117"; g.fill();
+    g.lineWidth = 3; g.strokeStyle = sel ? "#58a6ff" : "#484f58"; g.stroke();
+    if (n.slot === "hat") {
+      if (hat === "none") { g.fillStyle = "#666"; g.font = "20px monospace"; g.textAlign = "center"; g.fillText("✕", n.x, n.y + 7); }
+      else drawHat(g, n.x, n.y + 8, 1.3, hat);
+    } else if (n.slot === "scarf") {
+      if (!BANDANAS[bandana]) { g.fillStyle = "#666"; g.font = "20px monospace"; g.textAlign = "center"; g.fillText("✕", n.x, n.y + 7); }
+      else { g.fillStyle = BANDANAS[bandana]; g.fillRect(n.x - 13, n.y - 7, 26, 12); g.fillRect(n.x + 2, n.y + 4, 8, 10); }
+    } else if (n.slot === "duck") {
+      g.fillStyle = pal.base; g.fillRect(n.x - 12, n.y - 8, 24, 16);
+    } else {
+      const st = shoeFor();
+      if (!st) { g.fillStyle = "#666"; g.font = "20px monospace"; g.textAlign = "center"; g.fillText("✕", n.x, n.y + 7); }
+      else { g.fillStyle = st.main; g.fillRect(n.x - 12, n.y - 6, 24, 12); g.fillStyle = st.sole; g.fillRect(n.x - 12, n.y + 5, 24, 3); }
+    }
+    g.fillStyle = sel ? "#fff" : "#888"; g.font = (sel ? "bold " : "") + "13px monospace"; g.textAlign = "center";
+    g.fillText(n.label, n.x, n.y + n.r + 16);
+  });
+}
+if (doll) doll.addEventListener("click", (e) => {
+  try {
+    const r = doll.getBoundingClientRect();
+    const x = (e.clientX - r.left) * 560 / r.width;
+    const y = (e.clientY - r.top) * 340 / r.height;
+    for (const n of DOLL_NODES) {
+      if (Math.hypot(x - n.x, y - n.y) < n.r + 8) { setTab(n.slot); sndEat(); return; }
+    }
+    const part = dollPartAt(x, y);
+    if (part) { setTab(part); sndEat(); }
+  } catch (err) {}
+});
 
 const hpEl = document.getElementById("hp");
 const hp2wrap = document.getElementById("hp2wrap");
@@ -287,6 +374,9 @@ function showScreen(id) {
   });
   const rec = document.getElementById("records");
   if (rec) rec.style.display = (id === "scr-main") ? "" : "none";
+  const ob = document.getElementById("overlayBox");
+  if (ob) ob.classList.toggle("wide", id === "scr-custom");
+  if (mascot && mascot.style) mascot.style.display = (id === "scr-custom") ? "none" : "";
 }
 function showMenu() {
   state = "menu";
@@ -998,6 +1088,11 @@ function loop(now) {
   if (state === "gra") update(dt);
   draw();
   if (state === "menu" && !overlay.classList.contains("hidden")) drawMascot(mascotT);
+  if (state === "menu") {
+    try {
+      if (!document.getElementById("scr-custom").hidden) drawPaperdoll(mascotT);
+    } catch (e) {}
+  }
   requestAnimationFrame(loop);
 }
 
