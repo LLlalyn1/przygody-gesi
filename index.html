@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wielkie przygody gęsi — prototyp</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="wrap">
+  <h1>Wielkie przygody gęsi</h1>
+  <p id="tagline">Zemsta gęsi — prototyp MVP (single player, 2D top-down)</p>
+  <div id="hud">
+    <span>❤️ HP: <b id="hp">100</b></span>
+    <span>🪲 Owady: <b id="bugs">0/8</b></span>
+    <span>⭐ Punkty: <b id="score">0</b></span>
+    <span>🏚 Poziom: <b id="level">1/3</b></span>
+    <span>⏱ Czas: <b id="time">0:00</b></span>
+  </div>
+  <canvas id="game" width="800" height="600"></canvas>
+  <div id="overlay">
+    <div id="overlayBox">
+      <h2 id="ovTitle">Wielkie przygody gęsi</h2>
+      <p id="ovText">Obudziłeś się jako gęś w opuszczonym psychiatryku „Zofiówka”.
+      Zbierz <b>8 owadów</b>, żeby odzyskać siły, unikaj sanitariusza i trucizny,
+      potem ucieknij przez <b>drzwi</b> na górze mapy.</p>
+      <p id="controls">Sterowanie: <b>WASD / strzałki</b> — ruch, <b>Shift</b> — bieg,
+      <b>Spacja</b> — kwa-kwa, <b>E</b> — pułapka, <b>P</b> — pauza, <b>M</b> — dźwięk</p>
+      <button id="btnStart">Zacznij grę</button>
+      <div id="records"></div>
+    </div>
+  </div>
+  <p id="foot">Zespół Kaczki • klasa 3aTI • HTML5 Canvas (bez silnika — czysty JS, eksport na game.just4.pl)</p>
+</div>
+<script src="game.js"></script>
+</body>
+</html>

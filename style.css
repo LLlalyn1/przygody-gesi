@@ -1,0 +1,43 @@
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: #0d1117;
+  color: #e6edf3;
+  font-family: "Courier New", monospace;
+  display: flex;
+  justify-content: center;
+}
+#wrap { width: 840px; padding: 16px; text-align: center; position: relative; }
+h1 { margin: 8px 0 0; letter-spacing: 1px; }
+#tagline { opacity: 0.7; margin: 4px 0 12px; }
+#hud {
+  display: flex; gap: 16px; justify-content: center;
+  background: #161b22; border: 1px solid #30363d;
+  padding: 8px; margin-bottom: 8px; font-size: 15px;
+}
+canvas {
+  background: #111;
+  border: 2px solid #30363d;
+  image-rendering: pixelated;
+  width: 800px; height: 600px;
+}
+#overlay {
+  position: absolute; left: 20px; top: 148px;
+  width: 800px; height: 600px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,0.82); z-index: 10;
+}
+#overlay.hidden { display: none; }
+#overlayBox {
+  background: #161b22; border: 1px solid #58a6ff;
+  padding: 24px; max-width: 560px;
+}
+#controls { font-size: 13px; opacity: 0.9; }
+#records { margin-top: 12px; font-size: 13px; line-height: 1.5; }
+button {
+  background: #238636; color: #fff; border: 0;
+  padding: 12px 24px; font-size: 16px; cursor: pointer;
+  font-family: inherit; margin-top: 8px;
+}
+button:hover { background: #2ea043; }
+#foot { opacity: 0.5; font-size: 12px; margin-top: 12px; }
