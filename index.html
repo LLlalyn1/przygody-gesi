@@ -49,13 +49,24 @@
           <div class="screen" id="scr-multi" hidden>
             <p><b>Ko-op na 1 ekranie:</b> P1 — WASD + Spacja + E, P2 — strzałki + . + ,</p>
             <button class="big" id="btnCoop">🦆🦆 Gra dla 2 graczy</button>
-            <p><b>Online:</b> pokój przez internet — w przygotowaniu.</p>
+            <p><b>Online (przez internet):</b></p>
             <div class="row">
-              <input id="roomCode" maxlength="6" placeholder="KOD">
+              <input id="playerName" maxlength="16" placeholder="Twoje imię" value="Gęś">
+              <button id="btnRefresh" title="Odśwież">⟳</button>
+            </div>
+            <div id="roomList"><p class="dim">Łączenie…</p></div>
+            <div class="row">
+              <button id="btnRoomPub">Utwórz publiczny</button>
+              <button id="btnRoomPriv">Prywatny</button>
+            </div>
+            <div class="row">
+              <input id="roomCode" maxlength="5" placeholder="KOD">
               <button id="btnJoin">Dołącz</button>
             </div>
-            <button id="btnRoom">Utwórz pokój</button>
             <p id="roomMsg"></p>
+            <div id="roomWho"></div>
+            <button class="big" id="btnNetStart" hidden>▶ Start online</button>
+            <button id="btnLeave" hidden>Opuść pokój</button>
             <button class="back" data-back>Wróć</button>
           </div>
           <div class="screen" id="scr-settings" hidden>

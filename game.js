@@ -36,6 +36,11 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "Minus" || e.code === "NumpadSubtract") { changeVolume(-0.1); return; }
   if (e.code === "Equal" || e.code === "NumpadAdd") { changeVolume(0.1); return; }
   if (state !== "gra") return;
+  if (mode === "net-guest") {
+    if (e.code === "Space") net.q = true;
+    if (e.code === "KeyE") net.e = true;
+    return;
+  }
   if (e.code === "Space") tryQuack(P1());
   if (e.code === "KeyE") tryTrap(P1());
   if (mode === "coop") {
@@ -54,7 +59,7 @@ let exitDoor = { x: 360, y: 16, w: 80, h: 24, open: false };
 let level = 1, startTime = 0, elapsed = 0, score = 0, levelBugs = 0;
 let quackFx = 0, muted = false, musicOn = true;
 let levelMsg = 0, volume = 0.8, volFx = 1, volMusic = 0.8, volMsg = 0, shakeT = 0, poisonSndCd = 0;
-let mascotT = 0, mascotExcite = 0, sens = 1, vibOn = true;
+let mascotT = 0, mascotPeck = 0, sens = 1, vibOn = true;
 let parts = [];
 
 function saveSettings() {
@@ -215,7 +220,7 @@ function rekordyHTML() {
   const r = loadRekordy();
   if (!r.length) return "<p style='opacity:.6'>Brak rekordów — bądź pierwszy!</p>";
   let h = "<p><b>🏆 Rekordy TOP5:</b></p>";
-  r.forEach((x, i) => { h += "<div>" + (i + 1) + ". " + x.s + " pkt (poz." + x.l + (x.m === "coop" ? ", 2P" : "") + ", " + x.d + ")</div>"; });
+  r.forEach((x, i) => { h += "<div>" + (i + 1) + ". " + x.s + " pkt (poz." + x.l + (x.m && x.m !== "solo" ? ", 2P" : "") + ", " + x.d + ")</div>"; });
   return h;
 }
 
@@ -248,14 +253,21 @@ function drawMascot(t) {
   if (!mctx) return;
   mctx.clearRect(0, 0, 200, 260);
   const cyc = t % 10;
-  const exc = Math.min(1, mascotExcite);
-  const kwa = cyc > 9.0 || exc > 0.25;
+  const peck = mascotPeck > 0 ? 1 - mascotPeck / 0.55 : 0; // 0→1, uderzenie ~0.6
+  const exc = Math.max(peck > 0 ? Math.sin(Math.min(1, peck) * Math.PI) : 0, 0);
+  const kwa = cyc > 9.0 || exc > 0.5;
   const flap = (t % 7) < 0.6;
-  let hop = kwa && exc <= 0.25 ? -Math.sin((cyc - 9.0) * Math.PI) * 26 : 0;
+  let hop = kwa && exc <= 0.5 ? -Math.sin((cyc - 9.0) * Math.PI) * 26 : 0;
   if (exc > 0) hop += -Math.abs(Math.sin(t * 9)) * 12 * exc;
   const bob = Math.sin(t * 2) * 2;
+  const lean = -70 * exc; // dziób w stronę przycisków
+  const tilt = -0.22 * exc;
   const R = (x, y, w, h, c) => { mctx.fillStyle = c; mctx.fillRect(Math.round(x), Math.round(y), w, h); };
-  const bx = 45 - 24 * exc, by = 118 + bob + hop;
+  mctx.save();
+  mctx.translate(100 + lean, 150);
+  mctx.rotate(tilt);
+  mctx.translate(-100, -150);
+  const bx = 45 + lean, by = 118 + bob + hop;
   R(30, 236, 140, 6, "#000");                       // cień
   R(bx + 8, by + 84, 12, 14, "#ff8800");            // nogi
   R(bx + 62, by + 84, 12, 14, "#e07b00");
@@ -284,6 +296,14 @@ function drawMascot(t) {
   }
   mctx.fillStyle = "#8a93a0"; mctx.font = "12px monospace"; mctx.textAlign = "center";
   mctx.fillText("Zemsta gęsi", 100, 254);
+  mctx.restore();
+  if (exc > 0.4) {
+    mctx.strokeStyle = "#ffff00"; mctx.lineWidth = 2;
+    for (let i = 0; i < 3; i++) {
+      const yy = 100 + i * 22;
+      mctx.beginPath(); mctx.moveTo(28, yy); mctx.lineTo(6, yy); mctx.stroke();
+    }
+  }
 }
 
 // --- poziomy ---
@@ -375,6 +395,7 @@ function tryTrap(p) {
 }
 
 function togglePause() {
+  if (mode === "net-host" || mode === "net-guest") return; // pauza tylko lokalnie
   if (state === "gra") {
     state = "pauza";
     showMsg("PAUZA", "Poziom " + level + "/" + MAX_LEVEL + " (" + (mode === "coop" ? "2 graczy" : "solo") + "). Odpocznij, gęsi.", "Kontynuuj", true);
@@ -425,7 +446,7 @@ function moveGhost(e, dx, dy) {
 function updateHUD() {
   const a = alivePlayers();
   hpEl.textContent = Math.ceil(P1().hp);
-  if (mode === "coop" && P2()) {
+  if (mode !== "solo" && P2()) {
     hp2wrap.hidden = false;
     hp2El.textContent = P2().dead ? "☠" : Math.ceil(P2().hp);
   } else hp2wrap.hidden = true;
@@ -446,6 +467,13 @@ function nearestAlive(ec) {
 }
 
 function update(dt) {
+  if (mode === "net-guest") {
+    elapsed = (performance.now() - startTime) / 1000;
+    sendInput();
+    updateParts(dt);
+    updateHUD();
+    return;
+  }
   elapsed = (performance.now() - startTime) / 1000;
   quackFx = Math.max(0, quackFx - dt);
   levelMsg = Math.max(0, levelMsg - dt);
@@ -458,8 +486,9 @@ function update(dt) {
   let dy1 = (keys["KeyW"] ? -1 : 0) + (keys["KeyS"] ? 1 : 0) + (solos && keys["ArrowUp"] ? -1 : 0) + (solos && keys["ArrowDown"] ? 1 : 0);
   if (dx1 === 0 && dy1 === 0 && (joy.dx || joy.dy)) { dx1 = joy.dx * sens; dy1 = joy.dy * sens; }
   movePlayer(P1(), dx1, dy1, dt);
-  if (mode === "coop" && P2() && !P2().dead) {
-    movePlayer(P2(), (keys["ArrowLeft"] ? -1 : 0) + (keys["ArrowRight"] ? 1 : 0), (keys["ArrowUp"] ? -1 : 0) + (keys["ArrowDown"] ? 1 : 0), dt);
+  if (P2() && !P2().dead && (mode === "coop" || (mode === "net-host" && net.guest))) {
+    if (mode === "net-host" && net.guest) movePlayer(P2(), net.guest.dx, net.guest.dy, dt, net.guest.run);
+    else movePlayer(P2(), (keys["ArrowLeft"] ? -1 : 0) + (keys["ArrowRight"] ? 1 : 0), (keys["ArrowUp"] ? -1 : 0) + (keys["ArrowDown"] ? 1 : 0), dt);
   }
 
   for (const p of alivePlayers()) {
@@ -567,21 +596,25 @@ function update(dt) {
   if (!alivePlayers().length) { updateHUD(); return endGame(false); }
   updateParts(dt);
   updateHUD();
+  if (mode === "net-host") sendState();
 }
 
-function movePlayer(p, dx, dy, dt) {
+function movePlayer(p, dx, dy, dt, forceRun) {
   if (!p || p.dead) return;
   if (dx !== 0 || dy !== 0) {
     const len = Math.hypot(dx, dy);
     if (len > 1) { dx /= len; dy /= len; }
     if (dx !== 0) p.dir = dx > 0 ? 1 : -1;
   }
-  const running = (keys[p.runKey] || (p === P1() && touchRun)) ? 1.6 : 1.0;
+  const running = (keys[p.runKey] || (p === P1() && touchRun) || forceRun) ? 1.6 : 1.0;
   moveWithWalls(p, dx * 170 * running * dt, dy * 170 * running * dt);
 }
 
 function endGame(win) {
   state = win ? "wygrana" : "przegrana";
+  if (mode === "net-host") {
+    try { if (net.ws && net.ws.readyState === 1) net.ws.send(JSON.stringify({ t: "over", win, score })); } catch (e) {}
+  }
   if (win) {
     const bonus = Math.max(0, 300 - Math.floor(elapsed) * 2);
     score += bonus;
@@ -766,49 +799,206 @@ function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   mascotT += dt;
-  mascotExcite = Math.max(0, mascotExcite - dt);
+  mascotPeck = Math.max(0, mascotPeck - dt);
   if (state === "gra") update(dt);
   draw();
   if (state === "menu" && !overlay.classList.contains("hidden")) drawMascot(mascotT);
   requestAnimationFrame(loop);
 }
 
-// --- przyciski menu: guś sam "wciska" przycisk ---
+// --- przyciski menu: guś dziobie przycisk, potem akcja ---
 function uiClick(fn) {
   return (ev) => {
     startMusic();
     try { if (audioCtx && audioCtx.state === "suspended") audioCtx.resume(); } catch (e) {}
-    mascotExcite = 1.4;
+    mascotPeck = 0.55;
     const btn = ev && ev.currentTarget;
     if (btn && btn.classList) {
       btn.classList.remove("pressed");
       void btn.offsetWidth;
       btn.classList.add("pressed");
-      setTimeout(() => btn.classList.remove("pressed"), 350);
+      setTimeout(() => btn.classList.remove("pressed"), 400);
     }
-    setTimeout(fn, 180);
+    setTimeout(fn, 330);
   };
 }
 document.getElementById("btnSingle").addEventListener("click", uiClick(() => newGame("solo")));
 document.getElementById("btnCoop").addEventListener("click", uiClick(() => newGame("coop")));
-document.getElementById("btnMulti").addEventListener("click", uiClick(() => showScreen("scr-multi")));
+document.getElementById("btnMulti").addEventListener("click", uiClick(() => { showScreen("scr-multi"); netMsg(""); refreshRooms(); }));
+document.getElementById("btnRefresh").addEventListener("click", () => refreshRooms());
+document.getElementById("btnRoomPub").addEventListener("click", () => {
+  const ws = ensureWs();
+  if (ws && ws.readyState === 1) ws.send(JSON.stringify({ t: "create", name: playerName(), priv: false }));
+});
+document.getElementById("btnRoomPriv").addEventListener("click", () => {
+  const ws = ensureWs();
+  if (ws && ws.readyState === 1) ws.send(JSON.stringify({ t: "create", name: playerName(), priv: true }));
+});
+document.getElementById("btnJoin").addEventListener("click", () => {
+  const el = document.getElementById("roomCode");
+  const code = el && el.value ? el.value.trim().toUpperCase() : "";
+  if (!code) { netMsg("Wpisz kod pokoju."); return; }
+  joinRoom(code);
+});
+document.getElementById("btnLeave").addEventListener("click", () => { leaveRoom(); netMsg("Opuszczono pokój."); });
+document.getElementById("btnNetStart").addEventListener("click", uiClick(() => {
+  mode = "net-host";
+  players = [mkPlayer("Host", 80, "ShiftLeft"), mkPlayer("Gość", 150, "ShiftRight")];
+  level = 1; score = 0; levelBugs = 0;
+  startTime = performance.now();
+  elapsed = 0;
+  setupLevel();
+  state = "gra";
+  document.getElementById("hud").style.display = "flex";
+  overlay.classList.add("hidden");
+}));
 document.getElementById("btnSettings").addEventListener("click", uiClick(() => showScreen("scr-settings")));
 document.querySelectorAll("[data-back]").forEach((b) => b.addEventListener("click", uiClick(() => showScreen("scr-main"))));
 btnStart.addEventListener("click", uiClick(() => {
   if (state === "pauza") { togglePause(); return; }
   newGame(mode);
 }));
-document.getElementById("btnQuit").addEventListener("click", uiClick(() => showMenu()));
-document.getElementById("btnRoom").addEventListener("click", () => {
-  const code = Math.random().toString(36).slice(2, 8).toUpperCase();
-  document.getElementById("roomMsg").textContent = "Pokój " + code + " — serwer online w przygotowaniu. Zagraj we 2 na 1 ekranie!";
-});
-document.getElementById("btnJoin").addEventListener("click", () => {
-  const code = document.getElementById("roomCode").value.trim().toUpperCase();
-  document.getElementById("roomMsg").textContent = code
-    ? "Pokój " + code + " nie istnieje (serwer w przygotowaniu). Zagraj we 2 na 1 ekranie!"
-    : "Wpisz kod pokoju.";
-});
+document.getElementById("btnQuit").addEventListener("click", uiClick(() => { leaveRoom(); showMenu(); }));
+// --- online: lobby + synchronizacja (host symuluje, gość ogląda i steruje) ---
+const net = { ws: null, room: null, you: 0, names: [], priv: false, guest: null, lastState: 0, lastInput: 0, q: false, e: false };
+function wsUrl() {
+  try {
+    if (typeof location !== "undefined" && location.protocol.indexOf("http") === 0)
+      return (location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/ws/";
+  } catch (e) {}
+  return null;
+}
+function netMsg(t) {
+  const el = document.getElementById("roomMsg");
+  if (el) el.textContent = t;
+}
+function ensureWs() {
+  if (net.ws || typeof WebSocket === "undefined") {
+    if (!net.ws) netMsg("Online działa tylko na https://just4.pl");
+    return net.ws;
+  }
+  const url = wsUrl();
+  if (!url) { netMsg("Online działa tylko na https://just4.pl"); return null; }
+  try {
+    net.ws = new WebSocket(url);
+  } catch (e) { netMsg("Brak połączenia z serwerem."); net.ws = null; return null; }
+  net.ws.onmessage = (ev) => {
+    let m = null;
+    try { m = JSON.parse(ev.data); } catch (e) { return; }
+    if (m.t === "rooms") renderRooms(m.rooms || []);
+    else if (m.t === "joined") {
+      net.room = m.code; net.you = m.you; net.names = m.players || []; net.priv = !!m.priv;
+      updateRoomUI();
+      netMsg(m.you === 1 ? "Pokój " + m.code + " — czekaj na gracza." : "Dołączono do " + m.code + " — czekaj na start hosta.");
+    }
+    else if (m.t === "players") { net.names = m.players || []; updateRoomUI(); }
+    else if (m.t === "begin") { netMsg("Gość " + (m.guest || "") + " dołączył! Kliknij Start online."); updateRoomUI(); }
+    else if (m.t === "error") netMsg(m.msg || "Błąd.");
+    else if (m.t === "left") {
+      if (mode === "net-guest") { net.room = null; showMenu(); netMsg("Host opuścił pokój."); }
+      else if (mode === "net-host") { net.guest = null; if (players.length > 1) players.length = 1; popup(400, 300, "Gość wyszedł", "#ffcc00"); }
+      else { net.names = net.names.slice(0, 1); updateRoomUI(); }
+    }
+    else if (m.t === "over" && mode === "net-guest") {
+      score = m.score || 0;
+      showMsg(m.win ? "WYGRANA! Zemsta dokonana" : "PRZEGRANA",
+        (m.win ? "Uciekliście ze Zofiówki!" : "Złapano was w Zofiówce.") + "<br>Punkty: <b>" + score + "</b>",
+        "Do menu", true);
+      scoreEl.textContent = score;
+    }
+    else if (m.t === "state" && mode === "net-guest") applyState(m);
+    else if (m.t === "input" && mode === "net-host") {
+      net.guest = { dx: m.dx || 0, dy: m.dy || 0, run: !!m.run };
+      if (m.q && P2()) tryQuack(P2());
+      if (m.e && P2()) tryTrap(P2());
+    }
+  };
+  net.ws.onclose = () => { net.ws = null; if (state === "menu") netMsg("Rozłączono. Odśwież listę."); };
+  return net.ws;
+}
+function playerName() {
+  const el = document.getElementById("playerName");
+  const v = el && el.value ? el.value.trim().slice(0, 16) : "";
+  return v || "Gęś";
+}
+function renderRooms(rooms) {
+  const box = document.getElementById("roomList");
+  if (!box) return;
+  if (!rooms.length) { box.innerHTML = "<p class='dim'>Brak publicznych pokoi — utwórz własny.</p>"; return; }
+  box.innerHTML = "";
+  rooms.forEach((r) => {
+    const d = document.createElement("div");
+    d.className = "room";
+    const s = document.createElement("span");
+    s.textContent = r.code + " (" + r.players + "/" + r.max + ")";
+    const b = document.createElement("button");
+    b.textContent = "Dołącz";
+    b.addEventListener("click", () => joinRoom(r.code));
+    d.appendChild(s); d.appendChild(b);
+    box.appendChild(d);
+  });
+}
+function refreshRooms() {
+  const ws = ensureWs();
+  if (ws && ws.readyState === 1) ws.send(JSON.stringify({ t: "list" }));
+  else setTimeout(refreshRooms, 1000);
+}
+function joinRoom(code) {
+  const ws = ensureWs();
+  if (!ws) return;
+  const send = () => { if (ws.readyState === 1) ws.send(JSON.stringify({ t: "join", code, name: playerName() })); else setTimeout(send, 300); };
+  send();
+}
+function updateRoomUI() {
+  const inRoom = !!net.room;
+  document.getElementById("btnNetStart").hidden = !(inRoom && net.you === 1 && net.names.length > 1);
+  document.getElementById("btnLeave").hidden = !inRoom;
+  const who = document.getElementById("roomWho");
+  if (who) who.innerHTML = inRoom ? "<b>Pokój " + net.room + (net.priv ? " (prywatny)" : "") + ":</b> " + net.names.join(", ") : "";
+}
+function leaveRoom() {
+  try { if (net.ws && net.ws.readyState === 1) net.ws.send(JSON.stringify({ t: "leave" })); } catch (e) {}
+  net.room = null; net.you = 0; net.names = []; net.guest = null;
+  updateRoomUI();
+  refreshRooms();
+}
+function applyState(m) {
+  level = m.level || 1; score = m.score || 0; levelBugs = m.levelBugs || 0;
+  elapsed = m.elapsed || 0;
+  exitDoor = m.exitDoor || exitDoor;
+  walls = m.walls || []; poisons = m.poisons || [];
+  enemies = m.enemies || []; bugs = m.bugs || []; traps = m.traps || [];
+  quackFx = m.quackFx || 0; shakeT = m.shakeT || 0;
+  players = (m.players || []).map((s, i) => ({ name: i ? "Gość" : "Host", w: 22, h: 22, dir: 1, quackCd: 0, hurtCd: 0, runKey: "", x: s.x, y: s.y, hp: s.hp, dead: !!s.dead }));
+  if (state !== "gra") {
+    state = "gra";
+    document.getElementById("hud").style.display = "flex";
+    overlay.classList.add("hidden");
+  }
+  updateHUD();
+}
+function sendState() {
+  if (!net.ws || net.ws.readyState !== 1 || !net.room) return;
+  const now = performance.now();
+  if (now - net.lastState < 66) return;
+  net.lastState = now;
+  net.ws.send(JSON.stringify({
+    t: "state", level, score, levelBugs, elapsed, quackFx, shakeT, exitDoor,
+    walls, poisons, enemies, bugs, traps,
+    players: players.map((p) => ({ x: Math.round(p.x), y: Math.round(p.y), hp: Math.ceil(p.hp), dead: p.dead, dir: p.dir }))
+  }));
+}
+function sendInput() {
+  if (!net.ws || net.ws.readyState !== 1 || !net.room) return;
+  const now = performance.now();
+  if (now - net.lastInput < 50) return;
+  net.lastInput = now;
+  let dx = (keys["KeyA"] || keys["ArrowLeft"] ? -1 : 0) + (keys["KeyD"] || keys["ArrowRight"] ? 1 : 0);
+  let dy = (keys["KeyW"] || keys["ArrowUp"] ? -1 : 0) + (keys["KeyS"] || keys["ArrowDown"] ? 1 : 0);
+  if (dx === 0 && dy === 0 && (joy.dx || joy.dy)) { dx = joy.dx * sens; dy = joy.dy * sens; }
+  net.ws.send(JSON.stringify({ t: "input", dx, dy, run: !!(keys["ShiftLeft"] || keys["ShiftRight"] || touchRun), q: net.q, e: net.e }));
+  net.q = false; net.e = false;
+}
 document.getElementById("volRange").addEventListener("input", (e) => {
   volume = e.target.value / 100;
   volMsg = 1.5;
