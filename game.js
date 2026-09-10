@@ -533,12 +533,14 @@ function drawMascot(t) {
 
 // --- poziomy ---
 function mkPlayer(name, x, runKey) {
-  return { name, x, y: 500, w: 22, h: 22, hp: 100, dir: 1, quackCd: 0, hurtCd: 0, chomp: 0, anim: 0, moving: false, dead: false, runKey };
+  return { name, tag: null, x, y: 500, w: 22, h: 22, hp: 100, dir: 1, quackCd: 0, hurtCd: 0, chomp: 0, anim: 0, moving: false, dead: false, runKey };
 }
 function newGame(m) {
   mode = m;
   players = [mkPlayer("Gęś 1", 80, "ShiftLeft")];
   if (mode === "coop") players.push(mkPlayer("Gęś 2", 150, "ShiftRight"));
+  players[0].tag = nick || (mode === "coop" ? "P1" : null);
+  if (P2()) P2().tag = "P2";
   level = 1; score = 0; levelBugs = 0;
   startTime = performance.now();
   elapsed = 0;
@@ -682,6 +684,26 @@ function updateHUD() {
   timeEl.textContent = m + ":" + String(s).padStart(2, "0");
 }
 
+// interpolacja gościa: gładki ruch między klatkami (render 120 ms za hostem)
+function guestInterp() {
+  const b = net.buf;
+  if (!b || b.length < 2) return;
+  const prev = b[b.length - 2], cur = b[b.length - 1];
+  const now = performance.now();
+  if (now - cur.t > 600) return; // za stare — stój na ostatniej
+  const rt = now - 120;
+  const span = Math.max(1, cur.t - prev.t);
+  const f = Math.max(0, Math.min(1, (rt - prev.t) / span));
+  const L = (A, B, arr) => {
+    if (!A || !B || A.length !== B.length || B.length !== arr.length) return;
+    for (let i = 0; i < arr.length; i++) {
+      arr[i].x = A[i].x + (B[i].x - A[i].x) * f;
+      arr[i].y = A[i].y + (B[i].y - A[i].y) * f;
+    }
+  };
+  L(prev.players, cur.players, players);
+  L(prev.enemies, cur.enemies, enemies);
+}
 function nearestAlive(ec) {
   let best = null, bd = 1e9;
   for (const p of alivePlayers()) {
@@ -696,6 +718,7 @@ function update(dt) {
     elapsed = (performance.now() - startTime) / 1000;
     sendInput();
     if (score > (net.lastScore || 0)) { sndEat(); net.lastScore = score; }
+    guestInterp();
     updateParts(dt);
     updateHUD();
     return;
@@ -980,9 +1003,9 @@ function drawPlayer(p) {
   ctx.fillRect(px - 2, py - 8, 26, 5);
   ctx.fillStyle = p.hp > 50 ? "#00ff00" : (p.hp > 25 ? "#ffcc00" : "#ff0000");
   ctx.fillRect(px - 2, py - 8, 26 * (p.hp / 100), 5);
-  if (mode !== "solo" || nick) {
+  if (p.tag) {
     ctx.fillStyle = "#fff"; ctx.font = "10px monospace"; ctx.textAlign = "center";
-    ctx.fillText(nick || (p === P2() ? "P2" : "P1"), px + 11, py - 11);
+    ctx.fillText(p.tag, px + 11, py - 11);
   }
 }
 
@@ -1234,6 +1257,8 @@ document.getElementById("btnNetStart").addEventListener("click", uiClick(() => {
   if (net.names.length < 2) { netMsg("Nikt nie dołączył — poczekaj na gościa."); return; }
   mode = "net-host";
   players = [mkPlayer("Host", 80, "ShiftLeft"), mkPlayer("Gość", 150, "ShiftRight")];
+  players[0].tag = (net.names[0] || "Host").slice(0, 12);
+  players[1].tag = (net.names[1] || "Gość").slice(0, 12);
   level = 1; score = 0; levelBugs = 0;
   startTime = performance.now();
   elapsed = 0;
@@ -1253,7 +1278,7 @@ btnStart.addEventListener("click", uiClick(() => {
 }));
 document.getElementById("btnQuit").addEventListener("click", uiClick(() => { leaveRoom(); showMenu(); }));
 // --- online: lobby + synchronizacja (host symuluje, gość ogląda i steruje) ---
-const net = { ws: null, room: null, you: 0, names: [], priv: false, guest: null, lastState: 0, lastInput: 0, q: false, e: false };
+const net = { ws: null, room: null, you: 0, names: [], priv: false, guest: null, lastState: 0, lastInput: 0, lastScore: 0, buf: [], q: false, e: false };
 function wsUrl() {
   try {
     if (typeof location !== "undefined" && location.protocol.indexOf("http") === 0)
@@ -1372,8 +1397,10 @@ function applyState(m) {
   walls = m.walls || []; poisons = m.poisons || [];
   enemies = m.enemies || []; bugs = m.bugs || []; traps = m.traps || [];
   quackFx = m.quackFx || 0; shakeT = m.shakeT || 0;
-  players = (m.players || []).map((s, i) => ({ name: i ? "Gość" : "Host", w: 22, h: 22, dir: s.dir || 1, moving: !!s.moving, anim: s.anim || 0, hurtCd: s.hurtCd || 0, chomp: s.chomp || 0, quackCd: 0, runKey: "", x: s.x, y: s.y, hp: s.hp, dead: !!s.dead }));
+  players = (m.players || []).map((s, i) => ({ name: i ? "Gość" : "Host", tag: s.tag || null, w: 22, h: 22, dir: s.dir || 1, moving: !!s.moving, anim: s.anim || 0, hurtCd: s.hurtCd || 0, chomp: s.chomp || 0, quackCd: 0, runKey: "", x: s.x, y: s.y, hp: s.hp, dead: !!s.dead }));
   if (typeof m.cd === "number") netCountdown = m.cd;
+  net.buf.push({ t: performance.now(), enemies: (m.enemies || []).map((e) => ({ x: e.x, y: e.y })), players: (m.players || []).map((s) => ({ x: s.x, y: s.y })) });
+  if (net.buf.length > 3) net.buf.shift();
   if (state !== "gra") {
     state = "gra";
     document.getElementById("hud").style.display = "flex";
@@ -1384,12 +1411,12 @@ function applyState(m) {
 function sendState() {
   if (!net.ws || net.ws.readyState !== 1 || !net.room) return;
   const now = performance.now();
-  if (now - net.lastState < 66) return;
+  if (now - net.lastState < 50) return;
   net.lastState = now;
   net.ws.send(JSON.stringify({
     t: "state", level, score, levelBugs, elapsed, quackFx, shakeT, exitDoor, cd: mode === "net-host" ? netCountdown : 0,
     walls, poisons, enemies, bugs, traps,
-    players: players.map((p) => ({ x: Math.round(p.x), y: Math.round(p.y), hp: Math.ceil(p.hp), dead: p.dead, dir: p.dir, moving: p.moving, anim: Math.round(p.anim * 100) / 100, hurtCd: Math.round((p.hurtCd || 0) * 100) / 100, chomp: Math.round((p.chomp || 0) * 100) / 100 }))
+    players: players.map((p) => ({ x: Math.round(p.x), y: Math.round(p.y), hp: Math.ceil(p.hp), dead: p.dead, dir: p.dir, tag: p.tag || null, moving: p.moving, anim: Math.round(p.anim * 100) / 100, hurtCd: Math.round((p.hurtCd || 0) * 100) / 100, chomp: Math.round((p.chomp || 0) * 100) / 100 }))
   }));
 }
 let netCountdown = 0;
