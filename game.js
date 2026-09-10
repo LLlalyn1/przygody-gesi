@@ -1282,9 +1282,7 @@ function ensureWs() {
   return net.ws;
 }
 function playerName() {
-  const el = document.getElementById("playerName");
-  const v = el && el.value ? el.value.trim().slice(0, 16) : "";
-  return v || "Gęś";
+  return (nick || "").trim().slice(0, 16) || "Gęś";
 }
 function renderRooms(rooms) {
   const box = document.getElementById("roomList");
@@ -1490,8 +1488,6 @@ function buildPickers() {
 function syncPickers() { renderBlocks(); }
 document.getElementById("nickInput").addEventListener("input", (e) => {
   nick = e.target.value.trim().slice(0, 12);
-  const pn = document.getElementById("playerName");
-  if (pn && nick) pn.value = nick;
   saveSettings();
 });
 document.getElementById("btnRandom").addEventListener("click", () => {

@@ -96,7 +96,6 @@ body.touch #set-pc { display: none; }
 .room { display: flex; justify-content: space-between; align-items: center; background: #0d1117; border: 1px solid #30363d; padding: 6px 10px; margin: 4px 0; }
 .room button { margin: 0; padding: 6px 12px; font-size: 13px; }
 #roomWho { margin: 6px 0; font-size: 14px; }
-#playerName { width: 150px; text-align: center; font-size: 15px; font-family: inherit; background: #0d1117; color: #fff; border: 1px solid #30363d; padding: 8px; }
 label { display: block; margin: 8px 0; }
 #overlayBox { max-width: 640px; }
 button {
