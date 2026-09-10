@@ -1,0 +1,16 @@
+.Ds_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea
+*.suo
+*.user
+*.sublime-workspace
+*.sublime-project
+*.log
+*.tmp
+*.temp
+*~
+/build/
+/dist/
+*.zip
