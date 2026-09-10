@@ -61,6 +61,18 @@ let quackFx = 0, muted = false, musicOn = true;
 let levelMsg = 0, volume = 0.8, volFx = 1, volMusic = 0.8, volMsg = 0, shakeT = 0, poisonSndCd = 0;
 let mascotT = 0, mascotPeck = 0, sens = 1, vibOn = true;
 let parts = [];
+const mouseLook = { x: 0, y: 0 };
+if (typeof window !== "undefined" && window.addEventListener) {
+  window.addEventListener("mousemove", (e) => {
+    try {
+      const r = mascot.getBoundingClientRect();
+      const cx = r.left + r.width / 2, cy = r.top + r.height / 3;
+      const dx = e.clientX - cx, dy = e.clientY - cy;
+      const len = Math.hypot(dx, dy) || 1;
+      mouseLook.x = dx / len; mouseLook.y = dy / len;
+    } catch (err) {}
+  });
+}
 
 function saveSettings() {
   try { localStorage.setItem("gesi_set", JSON.stringify({ v: volume, fx: volFx, mus: volMusic, s: sens, vib: vibOn, mo: musicOn })); } catch (e) {}
@@ -248,62 +260,63 @@ function showMsg(title, html, btn, quit) {
   showScreen("scr-msg");
 }
 
-// --- maskotka: ładna gęś (mruga, macha skrzydłem, co ~10 s KWA + podskok) ---
+// --- maskotka: gęś pyskiem do przycisków (lewo), oczy za myszką, dziobie ---
 function drawMascot(t) {
   if (!mctx) return;
   mctx.clearRect(0, 0, 200, 260);
   const cyc = t % 10;
   const peck = mascotPeck > 0 ? 1 - mascotPeck / 0.55 : 0; // 0→1, uderzenie ~0.6
-  const exc = Math.max(peck > 0 ? Math.sin(Math.min(1, peck) * Math.PI) : 0, 0);
+  const exc = peck > 0 ? Math.sin(Math.min(1, peck) * Math.PI) : 0;
   const kwa = cyc > 9.0 || exc > 0.5;
   const flap = (t % 7) < 0.6;
   let hop = kwa && exc <= 0.5 ? -Math.sin((cyc - 9.0) * Math.PI) * 26 : 0;
-  if (exc > 0) hop += -Math.abs(Math.sin(t * 9)) * 12 * exc;
+  if (exc > 0) hop += -Math.abs(Math.sin(t * 9)) * 10 * exc;
   const bob = Math.sin(t * 2) * 2;
-  const lean = -70 * exc; // dziób w stronę przycisków
-  const tilt = -0.22 * exc;
+  const lean = -38 * exc; // wypad dziobem do przycisków (zostaje w kadrze)
+  const tilt = 0.28 * exc;
   const R = (x, y, w, h, c) => { mctx.fillStyle = c; mctx.fillRect(Math.round(x), Math.round(y), w, h); };
   mctx.save();
-  mctx.translate(100 + lean, 150);
+  mctx.translate(130, 150);
   mctx.rotate(tilt);
-  mctx.translate(-100, -150);
-  const bx = 45 + lean, by = 118 + bob + hop;
+  mctx.translate(-130, -150);
+  const bx = 75 + lean, by = 118 + bob + hop;
+  const ex = Math.round(mouseLook.x * 3), ey = Math.round(mouseLook.y * 3);
   R(30, 236, 140, 6, "#000");                       // cień
   R(bx + 8, by + 84, 12, 14, "#ff8800");            // nogi
   R(bx + 62, by + 84, 12, 14, "#e07b00");
   R(bx + 2, by + 96, 24, 6, "#ff8800");             // stopy
   R(bx + 56, by + 96, 24, 6, "#e07b00");
-  R(bx - 22, by + 30, 26, 12, "#dfe6ee");           // ogon
-  R(bx - 14, by + 20, 20, 12, "#ffffff");
+  R(bx + 88, by + 30, 26, 12, "#dfe6ee");           // ogon (z prawej)
+  R(bx + 82, by + 20, 20, 12, "#ffffff");
   R(bx, by + 26, 92, 60, "#ffffff");                // tułów
   R(bx, by + 66, 92, 20, "#dfe6ee");                // cień brzucha
-  if (flap) { R(bx + 10, by - 2, 60, 26, "#c8d2dd"); }  // skrzydło w górze
-  else { R(bx + 14, by + 34, 56, 24, "#c8d2dd"); R(bx + 14, by + 54, 56, 6, "#aeb9c6"); }
-  R(bx + 62, by - 34, 30, 62, "#ffffff");           // szyja
-  R(bx + 62, by - 34, 8, 62, "#dfe6ee");
-  R(bx + 54, by - 62, 46, 32, "#ffffff");           // głowa
+  if (flap) { R(bx + 22, by - 2, 60, 26, "#c8d2dd"); }
+  else { R(bx + 22, by + 34, 56, 24, "#c8d2dd"); R(bx + 22, by + 54, 56, 6, "#aeb9c6"); }
+  R(bx + 8, by - 34, 30, 62, "#ffffff");            // szyja (z lewej)
+  R(bx + 30, by - 34, 8, 62, "#dfe6ee");
+  R(bx - 8, by - 62, 46, 32, "#ffffff");            // głowa
   const blink = (t % 4) < 0.15;
-  if (blink) R(bx + 66, by - 52, 12, 3, "#000");
-  else { R(bx + 66, by - 56, 12, 12, "#000"); R(bx + 69, by - 53, 4, 4, "#fff"); }
-  R(bx + 100, by - 54, 22, 9, "#ff8800");           // dziób górny
+  if (blink) R(bx + 8, by - 52 + ey, 12, 3, "#000");
+  else { R(bx + 8, by - 56 + ey, 12, 12, "#000"); R(bx + 11 + ex, by - 53 + ey, 4, 4, "#fff"); }
+  R(bx - 30, by - 54, 22, 9, "#ff8800");            // dziób górny w lewo
   if (kwa) {
-    R(bx + 100, by - 41, 22, 9, "#e07b00");         // dziób dolny otwarty
+    R(bx - 30, by - 41, 22, 9, "#e07b00");          // dziób dolny otwarty
     mctx.strokeStyle = "#ffff00"; mctx.lineWidth = 2;
-    mctx.beginPath(); mctx.arc(bx + 111, by - 48, 14, -0.9, 0.9); mctx.stroke();
-    mctx.beginPath(); mctx.arc(bx + 111, by - 48, 24, -0.9, 0.9); mctx.stroke();
-    mctx.fillStyle = "#ffff00"; mctx.font = "bold 22px monospace"; mctx.textAlign = "center";
-    mctx.fillText("KWA!!", 100, 34);
+    mctx.beginPath(); mctx.arc(bx - 30, by - 48, 14, Math.PI - 0.9, Math.PI + 0.9); mctx.stroke();
+    mctx.beginPath(); mctx.arc(bx - 30, by - 48, 24, Math.PI - 0.9, Math.PI + 0.9); mctx.stroke();
+    mctx.fillStyle = "#ffff00"; mctx.font = "bold 20px monospace"; mctx.textAlign = "center";
+    mctx.fillText("KWA!!", 60, 34);
   }
-  mctx.fillStyle = "#8a93a0"; mctx.font = "12px monospace"; mctx.textAlign = "center";
-  mctx.fillText("Zemsta gęsi", 100, 254);
   mctx.restore();
   if (exc > 0.4) {
     mctx.strokeStyle = "#ffff00"; mctx.lineWidth = 2;
     for (let i = 0; i < 3; i++) {
       const yy = 100 + i * 22;
-      mctx.beginPath(); mctx.moveTo(28, yy); mctx.lineTo(6, yy); mctx.stroke();
+      mctx.beginPath(); mctx.moveTo(44, yy); mctx.lineTo(22, yy); mctx.stroke();
     }
   }
+  mctx.fillStyle = "#8a93a0"; mctx.font = "12px monospace"; mctx.textAlign = "center";
+  mctx.fillText("Zemsta gęsi", 100, 254);
 }
 
 // --- poziomy ---
@@ -812,6 +825,7 @@ function uiClick(fn) {
     startMusic();
     try { if (audioCtx && audioCtx.state === "suspended") audioCtx.resume(); } catch (e) {}
     mascotPeck = 0.55;
+    setTimeout(() => { try { beep(900, 0.05, "square"); } catch (e) {} }, 300);
     const btn = ev && ev.currentTarget;
     if (btn && btn.classList) {
       btn.classList.remove("pressed");
@@ -1055,4 +1069,26 @@ syncSettingsUI();
 setupTouch();
 showMenu();
 draw();
+fitScale();
+if (typeof window !== "undefined" && window.addEventListener) window.addEventListener("resize", fitScale);
 requestAnimationFrame(loop);
+
+// --- skala planszy pod urządzenie: PC większa, telefon dopasowana ---
+function fitScale() {
+  try {
+    if (!canvas.style || typeof document === "undefined" || !document.documentElement) return;
+    const touch = document.body.classList.contains("touch");
+    const vw = document.documentElement.clientWidth || 800;
+    const vh = document.documentElement.clientHeight || 700;
+    let s = Math.min((vw - 24) / 800, (vh - 250) / 600);
+    if (touch) s = Math.min(Math.max(s, 0.4), 1);
+    else s = Math.min(Math.max(s, 0.7), 1.5);
+    const w = Math.round(800 * s), h = Math.round(600 * s);
+    canvas.style.width = w + "px";
+    canvas.style.height = h + "px";
+    const st = document.getElementById("stage");
+    if (st && st.style) st.style.width = w + "px";
+    const tc = document.getElementById("touch");
+    if (tc && tc.style) tc.style.width = w + "px";
+  } catch (e) {}
+}

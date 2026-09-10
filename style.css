@@ -38,7 +38,7 @@ canvas {
 #touch { display: none; }
 body.touch #touch {
   display: flex; justify-content: space-between; align-items: center;
-  width: 800px; margin: 8px auto 0;
+  margin: 8px auto 0;
 }
 #joy {
   width: 120px; height: 120px; border: 2px solid #30363d; border-radius: 50%;
@@ -61,7 +61,7 @@ button.back { background: #30363d; margin-top: 12px; }
 button.back:hover { background: #484f58; }
 .screen { animation: fadein 0.25s ease; }
 @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; } }
-#mascot { border: 1px solid #30363d; background: #0d1117; width: 200px; height: 260px; }
+#mascot { background: transparent; border: none; width: 200px; height: 260px; }
 .menuHead h2 { margin: 0; font-size: 26px; }
 #logo { width: 64px; height: 64px; border: 2px solid #58a6ff; }
 button.big { display: block; width: 100%; margin: 8px 0; font-size: 17px; padding: 12px 20px; transition: transform 0.12s ease, background 0.12s ease; }
