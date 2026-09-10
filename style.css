@@ -24,14 +24,15 @@ canvas {
 }
 #overlay {
   position: absolute; left: -40px; right: -40px; top: -30px; bottom: -30px;
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: flex-start; justify-content: center;
+  overflow-y: auto;
   background: rgba(0,0,0,0.86); z-index: 10;
 }
 #overlay.hidden { display: none; }
 #overlayBox {
   background: #161b22; border: 2px solid #58a6ff;
-  padding: 24px 28px; width: 720px; max-width: 96%;
-  max-height: 640px; overflow-y: auto;
+  padding: 18px 24px; width: 720px; max-width: 96%;
+  margin: auto;
 }
 #controls { font-size: 13px; opacity: 0.9; }
 #records { margin-top: 12px; font-size: 13px; line-height: 1.5; }
@@ -63,8 +64,8 @@ button.back { background: #30363d; margin-top: 12px; }
 button.back:hover { background: #484f58; }
 .screen { animation: fadein 0.25s ease; }
 @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; } }
-#mascot { background: transparent; border: none; width: 200px; height: 260px; }
-.menuHead h2 { margin: 0; font-size: 26px; }
+#mascot { background: transparent; border: none; width: 160px; height: 208px; }
+.menuHead h2 { margin: 0; font-size: 22px; }
 #logo { width: 64px; height: 64px; border: 2px solid #58a6ff; }
 button.big { display: block; width: 100%; margin: 8px 0; font-size: 17px; padding: 12px 20px; transition: transform 0.12s ease, background 0.12s ease; }
 button.big.pressed { transform: scale(0.94); background: #f0b429; color: #000; }

@@ -285,6 +285,8 @@ function showScreen(id) {
   ["scr-main", "scr-multi", "scr-custom", "scr-settings", "scr-msg"].forEach((s) => {
     document.getElementById(s).hidden = (s !== id);
   });
+  const rec = document.getElementById("records");
+  if (rec) rec.style.display = (id === "scr-main") ? "" : "none";
 }
 function showMenu() {
   state = "menu";
