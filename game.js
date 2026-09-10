@@ -64,6 +64,10 @@ let parts = [];
 let bandana = "red", hat = "none", nick = "";
 const BANDANAS = { none: null, red: "#e63946", blue: "#3a86ff", green: "#38b000", yellow: "#ffbe0b", purple: "#9d4edd" };
 const HATS = ["none", "cylinder", "beanie", "helmet"];
+const SHOES = { none: null, adidasy: { main: "#e63946", sole: "#ffffff" }, kalosze: { main: "#ffbe0b", sole: "#5a3c00" } };
+const SHOE_KEYS = ["none", "adidasy", "kalosze"];
+let shoes = "none";
+function shoeFor() { return SHOES[shoes] || null; }
 const mascotPos = { x: 0, y: 0 };
 function drawHat(c, cx, top, s, style) {
   if (style === "cylinder") {
@@ -101,7 +105,7 @@ if (typeof window !== "undefined" && window.addEventListener) {
 }
 
 function saveSettings() {
-  try { localStorage.setItem("gesi_set", JSON.stringify({ v: volume, fx: volFx, mus: volMusic, s: sens, vib: vibOn, mo: musicOn, b: bandana, h: hat, n: nick })); } catch (e) {}
+  try { localStorage.setItem("gesi_set", JSON.stringify({ v: volume, fx: volFx, mus: volMusic, s: sens, vib: vibOn, mo: musicOn, b: bandana, h: hat, n: nick, sh: shoes })); } catch (e) {}
 }
 function loadSettings() {
   try {
@@ -116,6 +120,7 @@ function loadSettings() {
     if (typeof s.b === "string" && BANDANAS.hasOwnProperty(s.b)) bandana = s.b;
     if (typeof s.h === "string" && HATS.indexOf(s.h) >= 0) hat = s.h;
     if (typeof s.n === "string") nick = s.n.slice(0, 12);
+    if (typeof s.sh === "string" && SHOES.hasOwnProperty(s.sh)) shoes = s.sh;
   } catch (e) {}
 }
 
@@ -315,6 +320,13 @@ function drawMascot(t) {
   R(bx + 62, by + 84, 12, 14, "#e07b00");
   R(bx + 2, by + 96, 24, 6, "#ff8800");             // stopy
   R(bx + 56, by + 96, 24, 6, "#e07b00");
+  const msh = shoeFor();
+  if (msh) {
+    R(bx, by + 94, 28, 8, msh.main);
+    R(bx + 54, by + 94, 28, 8, msh.main);
+    R(bx, by + 101, 28, 3, msh.sole);
+    R(bx + 54, by + 101, 28, 3, msh.sole);
+  }
   R(bx + 88, by + 30, 26, 12, "#dfe6ee");           // ogon (z prawej)
   R(bx + 82, by + 20, 20, 12, "#ffffff");
   R(bx, by + 26, 92, 60, "#ffffff");                // tułów
@@ -747,6 +759,15 @@ function drawPlayer(p) {
   ctx.fillStyle = beakC;
   ctx.fillRect(px + 4, py + 20, 4, 3 + (p.moving ? swing : 0));
   ctx.fillRect(px + 14, py + 20, 4, 3 - (p.moving ? swing : 0));
+  const sh = shoeFor();
+  if (sh) {
+    ctx.fillStyle = sh.main;
+    ctx.fillRect(px + 2, py + 21, 8, 4);
+    ctx.fillRect(px + 12, py + 21, 8, 4);
+    ctx.fillStyle = sh.sole;
+    ctx.fillRect(px + 2, py + 24, 8, 2);
+    ctx.fillRect(px + 12, py + 24, 8, 2);
+  }
   // tułów + brzuch
   ctx.fillStyle = blink ? "#ffaaaa" : (p === P2() ? "#e8f4ff" : "#ffffff");
   ctx.fillRect(px, py + 6 + idle, 22, 14);
@@ -1200,12 +1221,65 @@ document.getElementById("chkVib").addEventListener("change", (e) => {
   vibOn = e.target.checked;
   saveSettings();
 });
-document.getElementById("bandana").addEventListener("change", (e) => {
-  if (BANDANAS.hasOwnProperty(e.target.value)) { bandana = e.target.value; saveSettings(); }
-});
-document.getElementById("hatSel").addEventListener("change", (e) => {
-  if (HATS.indexOf(e.target.value) >= 0) { hat = e.target.value; saveSettings(); }
-});
+// --- customizacja: bloki z podglądem ---
+function pickBlock(parent, val, drawFn, isSel, onPick) {
+  const box = document.getElementById(parent);
+  if (!box) return;
+  const b = document.createElement("button");
+  b.className = "block" + (isSel ? " sel" : "");
+  b.dataset.val = val;
+  if (drawFn) {
+    const cv = document.createElement("canvas");
+    cv.width = 44; cv.height = 38;
+    const g = cv.getContext("2d");
+    g.imageSmoothingEnabled = false;
+    drawFn(g);
+    b.appendChild(cv);
+  } else b.textContent = "✕";
+  b.addEventListener("click", () => { onPick(val); markPicked(parent, val); });
+  box.appendChild(b);
+}
+function markPicked(parent, val) {
+  const box = document.getElementById(parent);
+  if (!box || typeof box.querySelectorAll !== "function") return;
+  box.querySelectorAll(".block").forEach((el) => el.classList.toggle("sel", el.dataset.val === val));
+}
+function miniNeck(g, col) {
+  g.fillStyle = "#ffffff"; g.fillRect(14, 4, 16, 22);
+  if (col) {
+    g.fillStyle = col; g.fillRect(12, 12, 20, 8);
+    g.fillRect(24, 19, 6, 8);
+  }
+}
+function miniShoe(g, st) {
+  g.fillStyle = "#fff"; g.fillRect(16, 2, 12, 16);
+  g.fillStyle = "#ff8800"; g.fillRect(16, 18, 12, 8);
+  if (st) {
+    g.fillStyle = st.main; g.fillRect(14, 18, 16, 10);
+    g.fillStyle = st.sole; g.fillRect(14, 27, 16, 3);
+  }
+}
+function buildPickers() {
+  if (typeof document === "undefined" || typeof document.createElement !== "function") return;
+  const nb = document.getElementById("neckBlocks");
+  const hb = document.getElementById("hatBlocks");
+  const sb = document.getElementById("shoeBlocks");
+  if (!nb || !hb || !sb || nb.children.length) return;
+  Object.keys(BANDANAS).forEach((k) =>
+    pickBlock("neckBlocks", k, BANDANAS[k] ? ((g) => miniNeck(g, BANDANAS[k])) : ((g) => miniNeck(g, null)),
+      k === bandana, (v) => { bandana = v; saveSettings(); }));
+  HATS.forEach((h) =>
+    pickBlock("hatBlocks", h, h === "none" ? null : ((g) => { g.fillStyle = "#161b22"; g.fillRect(0, 0, 44, 38); drawHat(g, 22, 30, 1.6, h); }),
+      h === hat, (v) => { hat = v; saveSettings(); }));
+  SHOE_KEYS.forEach((k) =>
+    pickBlock("shoeBlocks", k, k === "none" ? null : ((g) => miniShoe(g, SHOES[k])),
+      k === shoes, (v) => { shoes = v; saveSettings(); }));
+}
+function syncPickers() {
+  markPicked("neckBlocks", bandana);
+  markPicked("hatBlocks", hat);
+  markPicked("shoeBlocks", shoes);
+}
 document.getElementById("nickInput").addEventListener("input", (e) => {
   nick = e.target.value.trim().slice(0, 12);
   const pn = document.getElementById("playerName");
@@ -1216,12 +1290,15 @@ document.getElementById("btnRandom").addEventListener("click", () => {
   const cols = Object.keys(BANDANAS);
   bandana = cols[Math.floor(Math.random() * cols.length)];
   hat = HATS[Math.floor(Math.random() * HATS.length)];
+  shoes = SHOE_KEYS[Math.floor(Math.random() * SHOE_KEYS.length)];
+  syncPickers();
   syncSettingsUI();
   saveSettings();
   sndEat();
 });
 document.getElementById("btnClearLook").addEventListener("click", () => {
-  bandana = "none"; hat = "none";
+  bandana = "none"; hat = "none"; shoes = "none";
+  syncPickers();
   syncSettingsUI();
   saveSettings();
 });
@@ -1239,9 +1316,11 @@ function syncSettingsUI() {
   const bd = document.getElementById("bandana"); if (bd) bd.value = bandana;
   const hs = document.getElementById("hatSel"); if (hs) hs.value = hat;
   const ni = document.getElementById("nickInput"); if (ni && document.activeElement !== ni) ni.value = nick;
+  syncPickers();
 }
 
 loadSettings();
+buildPickers();
 syncSettingsUI();
 setupTouch();
 showMenu();

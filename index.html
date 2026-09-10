@@ -41,11 +41,11 @@
       <div class="menuMain">
         <div class="menuBtns">
           <div class="screen" id="scr-main">
+            <input id="nickInput" maxlength="12" placeholder="Nick">
             <button class="big" id="btnSingle">▶ Gra jednoosobowa</button>
             <button class="big" id="btnMulti">👥 Gra wieloosobowa</button>
             <button class="big" id="btnCustom">🎨 Customizacja</button>
             <button class="big" id="btnSettings">⚙ Ustawienia</button>
-            <p class="dim">Gąską obok sterujesz: WASD / joystick.</p>
           </div>
           <div class="screen" id="scr-multi" hidden>
             <p><b>Ko-op na 1 ekranie:</b> P1 — WASD + Spacja + E, P2 — strzałki + . + ,</p>
@@ -72,21 +72,12 @@
           </div>
           <div class="screen" id="scr-custom" hidden>
             <p><b>Wygląd gęsi</b> (podgląd obok na żywo):</p>
-            <label>Chusta: <select id="bandana">
-              <option value="red">Czerwona</option>
-              <option value="blue">Niebieska</option>
-              <option value="green">Zielona</option>
-              <option value="yellow">Żółta</option>
-              <option value="purple">Fioletowa</option>
-              <option value="none">Brak</option>
-            </select></label>
-            <label>Kapelusz: <select id="hatSel">
-              <option value="none">Brak</option>
-              <option value="cylinder">Cylinder</option>
-              <option value="beanie">Czapka</option>
-              <option value="helmet">Kask</option>
-            </select></label>
-            <label>Nick (niekoniecznie): <input id="nickInput" maxlength="12" placeholder="np. Szefowa"></label>
+            <p class="cat">Szyja</p>
+            <div class="blocks" id="neckBlocks"></div>
+            <p class="cat">Głowa</p>
+            <div class="blocks" id="hatBlocks"></div>
+            <p class="cat">Nogi</p>
+            <div class="blocks" id="shoeBlocks"></div>
             <div class="row">
               <button id="btnRandom">🎲 Losuj</button>
               <button id="btnClearLook">Usuń wszystko</button>
