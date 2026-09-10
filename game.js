@@ -17,7 +17,14 @@ const DOLL_NODES = [
   { slot: "duck", label: "Ciało", x: 460, y: 205, r: 24 },
   { slot: "shoes", label: "Nogi", x: 105, y: 275, r: 24 }
 ];
-let dollEnterT = 99;
+let dollEnterT = 99, dollExit = -1, pendingScreen = null;
+function currentScreen() {
+  const ids = ["scr-main", "scr-multi", "scr-custom", "scr-settings", "scr-msg"];
+  for (const s of ids) {
+    try { if (!document.getElementById(s).hidden) return s; } catch (e) {}
+  }
+  return "";
+}
 // klik w węzeł = następny wariant
 function cycleSlot(slot) {
   if (slot === "duck") bodyColor = BODY_KEYS[(BODY_KEYS.indexOf(bodyColor) + 1) % BODY_KEYS.length];
@@ -49,11 +56,19 @@ function drawPaperdoll(t) {
   const bob = Math.sin(t * 2) * 2;
   const R = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), w, h); };
   g.save();
-  const enter = Math.min(1, dollEnterT / 1.2);
-  const ease = 1 - Math.pow(1 - enter, 3);
-  const sc = 0.45 + 0.5 * ease; // wyrasta z maskotki
-  const offX = (1 - ease) * (1 - ease) * 300;
-  const stepBob = enter < 1 ? -Math.abs(Math.sin(t * 14)) * 8 : 0;
+  let sc, offX, stepBob;
+  if (dollExit >= 0) {
+    const q = Math.min(1, dollExit / 0.65); // wyjście: maleje i w prawo
+    sc = 0.95 - 0.5 * q * q;
+    offX = 300 * q * q;
+    stepBob = -Math.abs(Math.sin(t * 14)) * 8 * (1 - q);
+  } else {
+    const enter = Math.min(1, dollEnterT / 1.2);
+    const ease = 1 - Math.pow(1 - enter, 3);
+    sc = 0.45 + 0.5 * ease; // wyrasta z maskotki
+    offX = (1 - ease) * (1 - ease) * 300;
+    stepBob = enter < 1 ? -Math.abs(Math.sin(t * 14)) * 8 : 0;
+  }
   const gx = 120 + offX, gy = 5 + stepBob;
   g.translate(gx, gy);
   g.scale(sc, sc);
@@ -267,7 +282,7 @@ function center(e) { return { x: e.x + e.w / 2, y: e.y + e.h / 2 }; }
 // --- dźwięk: pliki WAV + awaryjne piski ---
 let audioCtx = null;
 const SFX = {};
-const ASSET_V = "v12";
+const ASSET_V = "v13";
 function loadSfx(name) {
   try {
     if (typeof Audio === "undefined") return;
@@ -409,6 +424,13 @@ function rekordyHTML() {
 
 // --- ekrany menu ---
 function showScreen(id) {
+  if (currentScreen() === "scr-custom" && id !== "scr-custom" && state === "menu" && dollExit < 0) {
+    dollExit = 0; pendingScreen = id; // najpierw gęś wychodzi
+    return;
+  }
+  doShow(id);
+}
+function doShow(id) {
   ["scr-main", "scr-multi", "scr-custom", "scr-settings", "scr-msg"].forEach((s) => {
     document.getElementById(s).hidden = (s !== id);
   });
@@ -1119,6 +1141,14 @@ function loop(now) {
   mascotT += dt;
   mascotPeck = Math.max(0, mascotPeck - dt);
   dollEnterT = Math.min(99, dollEnterT + dt);
+  if (dollExit >= 0) {
+    dollExit += dt;
+    if (dollExit >= 0.65) {
+      const p = pendingScreen;
+      dollExit = -1; pendingScreen = null;
+      if (p) doShow(p);
+    }
+  }
   if (state === "menu") {
     // gąską w menu sterujesz (WASD / strzałki / joystick)
     let mdx = ((keys["KeyA"] || keys["ArrowLeft"]) ? -1 : 0) + ((keys["KeyD"] || keys["ArrowRight"]) ? 1 : 0);
