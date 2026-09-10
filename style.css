@@ -88,7 +88,8 @@ body.touch #set-pc { display: none; }
 #roomCode { width: 90px; text-align: center; font-size: 16px; font-family: inherit; background: #0d1117; color: #fff; border: 1px solid #30363d; padding: 8px; text-transform: uppercase; }
 #bandana { font-size: 14px; font-family: inherit; background: #0d1117; color: #fff; border: 1px solid #30363d; padding: 6px; }
 #overlayBox.wide .menuBtns { flex: 1; min-width: 0; }
-#paperdoll { width: 100%; max-width: 540px; height: auto; border: 1px solid #30363d; background: #0d1117; cursor: pointer; }
+#overlayBox.wide #mascot { display: none; }
+#paperdoll { width: 100%; max-width: 540px; height: auto; border: 1px solid #30363d; background: #0d1117; cursor: pointer; display: block; margin: 0 auto; }
 #roomMsg { min-height: 20px; color: #ffcc00; }
 #roomList { max-height: 130px; overflow-y: auto; margin: 6px 0; }
 .room { display: flex; justify-content: space-between; align-items: center; background: #0d1117; border: 1px solid #30363d; padding: 6px 10px; margin: 4px 0; }

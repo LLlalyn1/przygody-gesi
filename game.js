@@ -12,18 +12,19 @@ const doll = document.getElementById("paperdoll");
 const dctx = doll && doll.getContext ? doll.getContext("2d") : null;
 if (dctx) dctx.imageSmoothingEnabled = false;
 const DOLL_NODES = [
-  { slot: "hat", label: "Głowa", x: 440, y: 62, r: 26 },
-  { slot: "scarf", label: "Szyja", x: 466, y: 142, r: 26 },
-  { slot: "duck", label: "Ciało", x: 440, y: 222, r: 26 },
-  { slot: "shoes", label: "Nogi", x: 466, y: 300, r: 26 }
+  { slot: "hat", label: "Głowa", x: 66, y: 74, r: 24 },
+  { slot: "scarf", label: "Szyja", x: 498, y: 130, r: 24 },
+  { slot: "duck", label: "Ciało", x: 498, y: 192, r: 24 },
+  { slot: "shoes", label: "Nogi", x: 66, y: 256, r: 24 }
 ];
 // --- paper-doll: gęś na środku, linie do węzłów, klik wybiera slot ---
 function dollPartAt(x, y) {
+  const ax = (x - 150) / 0.8, ay = (y - 10) / 0.8;
   const ox = 50, oy = 55;
-  if (x >= ox - 52 && x <= ox + 50 && y >= oy - 8 && y <= oy + 60) return "hat";
-  if (x >= ox + 8 && x <= ox + 52 && y >= oy + 40 && y <= oy + 140) return "scarf";
-  if (x >= ox + 40 && x <= ox + 190 && y >= oy + 130 && y <= oy + 215) return "duck";
-  if (x >= ox + 20 && x <= ox + 170 && y >= oy + 215 && y <= oy + 275) return "shoes";
+  if (ax >= ox - 52 && ax <= ox + 50 && ay >= oy - 8 && ay <= oy + 60) return "hat";
+  if (ax >= ox + 8 && ax <= ox + 52 && ay >= oy + 40 && ay <= oy + 140) return "scarf";
+  if (ax >= ox + 40 && ax <= ox + 190 && ay >= oy + 130 && ay <= oy + 215) return "duck";
+  if (ax >= ox + 20 && ax <= ox + 170 && ay >= oy + 215 && ay <= oy + 275) return "shoes";
   return null;
 }
 function drawPaperdoll(t) {
@@ -33,6 +34,9 @@ function drawPaperdoll(t) {
   const ox = 50, oy = 55;
   const bob = Math.sin(t * 2) * 2;
   const R = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), w, h); };
+  g.save();
+  g.translate(150, 10);
+  g.scale(0.8, 0.8);
   R(ox + 50, oy + 240, 16, 16, "#ff8800");
   R(ox + 110, oy + 240, 16, 16, "#e07b00");
   const sh = shoeFor();
@@ -53,15 +57,19 @@ function drawPaperdoll(t) {
   if (blink) R(ox + 2, oy + 12 + bob, 16, 4, eyec);
   else { R(ox + 2, oy + 6 + bob, 16, 16, eyec); R(ox + 6, oy + 10 + bob, 5, 5, hl); }
   drawHat(g, ox + 16, oy + 2 + bob, 2.2, hat);
-  const anchors = { hat: [ox + 16, oy + 25 + bob], scarf: [ox + 30, oy + 95 + bob], duck: [ox + 115, oy + 172 + bob], shoes: [ox + 80, oy + 252] };
+  g.restore();
+  const T = (ax, ay) => [150 + 0.8 * ax, 10 + 0.8 * ay];
+  const anchors = { hat: T(ox + 16, oy + 25 + bob), scarf: T(ox + 30, oy + 95 + bob), duck: T(ox + 115, oy + 172 + bob), shoes: T(ox + 80, oy + 252) };
   DOLL_NODES.forEach((n) => {
     const a = anchors[n.slot];
     const sel = customTab === n.slot;
+    const left = n.x < a[0];
+    const ex = left ? n.x + n.r : n.x - n.r;
     g.strokeStyle = sel ? "#58a6ff" : "#484f58"; g.lineWidth = sel ? 3 : 2;
     g.beginPath();
     g.moveTo(a[0], a[1]);
-    g.lineTo(a[0] + 46, n.y);
-    g.lineTo(n.x - n.r, n.y);
+    g.lineTo(left ? ex + 30 : ex - 30, n.y);
+    g.lineTo(ex, n.y);
     g.stroke();
     g.beginPath(); g.arc(n.x, n.y, n.r, 0, Math.PI * 2);
     g.fillStyle = "#0d1117"; g.fill();
@@ -1087,10 +1095,11 @@ function loop(now) {
   }
   if (state === "gra") update(dt);
   draw();
-  if (state === "menu" && !overlay.classList.contains("hidden")) drawMascot(mascotT);
-  if (state === "menu") {
+  if (state === "menu" && !overlay.classList.contains("hidden") && customTab !== undefined) {
     try {
-      if (!document.getElementById("scr-custom").hidden) drawPaperdoll(mascotT);
+      const customOn = !document.getElementById("scr-custom").hidden;
+      if (!customOn) drawMascot(mascotT);
+      else drawPaperdoll(mascotT);
     } catch (e) {}
   }
   requestAnimationFrame(loop);
