@@ -29,7 +29,8 @@ ws_room = {}  # ws -> code
 
 def public_rooms():
     return [{"code": c, "players": len(r["members"]), "max": MAX_PLAYERS}
-            for c, r in rooms.items() if not r["priv"] and len(r["members"]) < MAX_PLAYERS]
+            for c, r in rooms.items()
+            if not r["priv"] and not r.get("playing") and len(r["members"]) < MAX_PLAYERS]
 
 
 def names(room):
@@ -60,6 +61,7 @@ async def leave_room(ws, notify=True):
     if not room:
         return
     room["members"].pop(ws, None)
+    room["playing"] = False
     if not room["members"]:
         rooms.pop(code, None)
         return
@@ -111,6 +113,12 @@ async def handle(ws):
 
             elif t == "leave":
                 await leave_room(ws)
+
+            elif t == "playing":
+                code = ws_room.get(ws)
+                room = rooms.get(code) if code else None
+                if room:
+                    room["playing"] = bool(msg.get("on"))
 
             elif t in ("state", "input"):
                 code = ws_room.get(ws)

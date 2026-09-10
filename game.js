@@ -700,6 +700,16 @@ function update(dt) {
     updateHUD();
     return;
   }
+  if (mode === "net-host" && netCountdown > 0) {
+    const before = Math.ceil(netCountdown);
+    netCountdown = Math.max(0, netCountdown - dt);
+    if (Math.ceil(netCountdown) < before && netCountdown > 0) beep(440, 0.1, "square");
+    if (netCountdown === 0) sndLevel();
+    elapsed = (performance.now() - startTime) / 1000;
+    sendState();
+    updateHUD();
+    return;
+  }
   elapsed = (performance.now() - startTime) / 1000;
   quackFx = Math.max(0, quackFx - dt);
   levelMsg = Math.max(0, levelMsg - dt);
@@ -1081,6 +1091,15 @@ function draw() {
     ctx.fillText("Zbierz " + targetBugs() + " owadów i ucieknij!", W / 2, H / 2 + 8);
   }
   if (state === "gra") drawSkills();
+  const cdShow = (mode === "net-host" || mode === "net-guest") ? netCountdown : 0;
+  if (state === "gra" && cdShow > 0) {
+    ctx.fillStyle = "rgba(0,0,0,0.45)";
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#ffff00"; ctx.font = "bold 72px monospace"; ctx.textAlign = "center";
+    ctx.fillText(cdShow > 0.6 ? String(Math.ceil(cdShow - 0.6)) : "START!", W / 2, H / 2);
+    ctx.font = "16px monospace"; ctx.fillStyle = "#fff";
+    ctx.fillText(mode === "net-host" ? "Host: WASD • Gość: WASD" : "Sterujesz drugą gęsią: WASD", W / 2, H / 2 + 40);
+  }
   if (muted) {
     ctx.fillStyle = "#888"; ctx.font = "12px monospace"; ctx.textAlign = "right";
     ctx.fillText("wyciszone (M)", W - 10, H - 10);
@@ -1218,6 +1237,8 @@ document.getElementById("btnNetStart").addEventListener("click", uiClick(() => {
   level = 1; score = 0; levelBugs = 0;
   startTime = performance.now();
   elapsed = 0;
+  netCountdown = 3.2;
+  try { if (net.ws && net.ws.readyState === 1) net.ws.send(JSON.stringify({ t: "playing", on: true })); } catch (e) {}
   setupLevel();
   state = "gra";
   document.getElementById("hud").style.display = "flex";
@@ -1332,7 +1353,12 @@ function updateRoomUI() {
   if (who) who.innerHTML = inRoom ? "<b>Pokój " + net.room + (net.priv ? " (prywatny)" : "") + ":</b> " + net.names.join(", ") : "";
 }
 function leaveRoom() {
-  try { if (net.ws && net.ws.readyState === 1) net.ws.send(JSON.stringify({ t: "leave" })); } catch (e) {}
+  try {
+    if (net.ws && net.ws.readyState === 1) {
+      net.ws.send(JSON.stringify({ t: "playing", on: false }));
+      net.ws.send(JSON.stringify({ t: "leave" }));
+    }
+  } catch (e) {}
   net.room = null; net.you = 0; net.names = []; net.guest = null;
   updateRoomUI();
   refreshRooms();
@@ -1346,7 +1372,8 @@ function applyState(m) {
   walls = m.walls || []; poisons = m.poisons || [];
   enemies = m.enemies || []; bugs = m.bugs || []; traps = m.traps || [];
   quackFx = m.quackFx || 0; shakeT = m.shakeT || 0;
-  players = (m.players || []).map((s, i) => ({ name: i ? "Gość" : "Host", w: 22, h: 22, dir: 1, quackCd: 0, hurtCd: 0, runKey: "", x: s.x, y: s.y, hp: s.hp, dead: !!s.dead }));
+  players = (m.players || []).map((s, i) => ({ name: i ? "Gość" : "Host", w: 22, h: 22, dir: s.dir || 1, moving: !!s.moving, anim: s.anim || 0, hurtCd: s.hurtCd || 0, chomp: s.chomp || 0, quackCd: 0, runKey: "", x: s.x, y: s.y, hp: s.hp, dead: !!s.dead }));
+  if (typeof m.cd === "number") netCountdown = m.cd;
   if (state !== "gra") {
     state = "gra";
     document.getElementById("hud").style.display = "flex";
@@ -1360,11 +1387,12 @@ function sendState() {
   if (now - net.lastState < 66) return;
   net.lastState = now;
   net.ws.send(JSON.stringify({
-    t: "state", level, score, levelBugs, elapsed, quackFx, shakeT, exitDoor,
+    t: "state", level, score, levelBugs, elapsed, quackFx, shakeT, exitDoor, cd: mode === "net-host" ? netCountdown : 0,
     walls, poisons, enemies, bugs, traps,
-    players: players.map((p) => ({ x: Math.round(p.x), y: Math.round(p.y), hp: Math.ceil(p.hp), dead: p.dead, dir: p.dir }))
+    players: players.map((p) => ({ x: Math.round(p.x), y: Math.round(p.y), hp: Math.ceil(p.hp), dead: p.dead, dir: p.dir, moving: p.moving, anim: Math.round(p.anim * 100) / 100, hurtCd: Math.round((p.hurtCd || 0) * 100) / 100, chomp: Math.round((p.chomp || 0) * 100) / 100 }))
   }));
 }
+let netCountdown = 0;
 function sendInput() {
   if (!net.ws || net.ws.readyState !== 1 || !net.room) return;
   const now = performance.now();
