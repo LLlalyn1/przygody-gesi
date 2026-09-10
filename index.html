@@ -2,7 +2,7 @@
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Wielkie przygody gęsi — prototyp</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
@@ -10,9 +10,10 @@
 <body>
 <div id="wrap">
   <h1>Wielkie przygody gęsi</h1>
-  <p id="tagline">Zemsta gęsi — prototyp MVP (single player, 2D top-down)</p>
+  <p id="tagline">Zemsta gęsi — prototyp (single + ko-op, 2D top-down)</p>
   <div id="hud">
-    <span>❤️ HP: <b id="hp">100</b></span>
+    <span>❤️ <b id="hp">100</b></span>
+    <span id="hp2wrap" hidden>❤️‍🩹 P2: <b id="hp2">100</b></span>
     <span>🪲 Owady: <b id="bugs">0/8</b></span>
     <span>⭐ Punkty: <b id="score">0</b></span>
     <span>🏚 Poziom: <b id="level">1/3</b></span>
@@ -30,15 +31,58 @@
   </div>
   <div id="overlay">
     <div id="overlayBox">
-      <h2 id="ovTitle">Wielkie przygody gęsi</h2>
-      <p id="ovText">Obudziłeś się jako gęś w opuszczonym psychiatryku „Zofiówka”.
-      Zbierz <b>8 owadów</b>, żeby odzyskać siły, unikaj sanitariusza i trucizny,
-      potem ucieknij przez <b>drzwi</b> na górze mapy.</p>
+      <div class="menuHead">
+        <svg id="logo" viewBox="0 0 32 32" shape-rendering="crispEdges">
+          <rect width="32" height="32" fill="#1a1f2b"/>
+          <rect x="6" y="16" width="14" height="9" fill="#ffffff"/>
+          <rect x="18" y="8" width="7" height="9" fill="#ffffff"/>
+          <rect x="25" y="11" width="4" height="3" fill="#ff8800"/>
+          <rect x="20" y="10" width="2" height="2" fill="#000000"/>
+          <rect x="8" y="25" width="3" height="3" fill="#ff8800"/>
+          <rect x="14" y="25" width="3" height="3" fill="#ff8800"/>
+        </svg>
+        <div>
+          <h2 id="ovTitle">Wielkie przygody gęsi</h2>
+          <div class="tagline">„Zemsta gęsi”</div>
+        </div>
+      </div>
+      <div class="menuMain">
+        <div class="menuBtns">
+          <div class="screen" id="scr-main">
+            <button class="big" id="btnSingle">▶ Single player</button>
+            <button class="big" id="btnMulti">👥 Multiplayer</button>
+            <button class="big" id="btnSettings">⚙ Ustawienia</button>
+            <div id="records"></div>
+          </div>
+          <div class="screen" id="scr-multi" hidden>
+            <p><b>Ko-op na 1 ekranie:</b> P1 — WASD + Spacja + E, P2 — strzałki + . + ,</p>
+            <button class="big" id="btnCoop">🦆🦆 Graj we 2</button>
+            <p><b>Online:</b> pokój przez internet — w przygotowaniu.</p>
+            <div class="row">
+              <input id="roomCode" maxlength="6" placeholder="KOD">
+              <button id="btnJoin">Dołącz</button>
+            </div>
+            <button id="btnRoom">Utwórz lobby</button>
+            <p id="roomMsg"></p>
+            <button class="back" data-back>Wróć</button>
+          </div>
+          <div class="screen" id="scr-settings" hidden>
+            <label>Głośność: <input type="range" id="volRange" min="0" max="100" value="80"></label>
+            <label><input type="checkbox" id="chkSound" checked> Dźwięki</label>
+            <label><input type="checkbox" id="chkMusic" checked> Muzyka (ambient)</label>
+            <button id="btnWipe">Wyczyść rekordy</button>
+            <button class="back" data-back>Wróć</button>
+          </div>
+          <div class="screen" id="scr-msg" hidden>
+            <p id="ovText"></p>
+            <button class="big" id="btnStart">Zacznij grę</button>
+          </div>
+        </div>
+        <canvas id="mascot" width="200" height="260"></canvas>
+      </div>
       <p id="controls">Sterowanie: <b>WASD / strzałki</b> — ruch, <b>Shift</b> — bieg,
       <b>Spacja</b> — kwa-kwa, <b>E</b> — pułapka, <b>P</b> — pauza, <b>M</b> — dźwięk,
       <b>- / +</b> — głośność. Na telefonie: joystick + przyciski.</p>
-      <button id="btnStart">Zacznij grę</button>
-      <div id="records"></div>
     </div>
   </div>
   <p id="foot">Zespół Kaczki • klasa 3aTI • Mykhailo Hasenko</p>
