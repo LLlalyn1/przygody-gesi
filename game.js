@@ -36,9 +36,9 @@ function dollPartAt(x, y) {
   const ax = (x - 120) / 0.95, ay = (y - 5) / 0.95;
   const ox = 50, oy = 55;
   if (ax >= ox - 52 && ax <= ox + 50 && ay >= oy - 8 && ay <= oy + 60) return "hat";
-  if (ax >= ox + 8 && ax <= ox + 52 && ay >= oy + 40 && ay <= oy + 140) return "scarf";
-  if (ax >= ox + 40 && ax <= ox + 190 && ay >= oy + 130 && ay <= oy + 215) return "duck";
-  if (ax >= ox + 20 && ax <= ox + 170 && ay >= oy + 215 && ay <= oy + 275) return "shoes";
+  if (ax >= ox + 8 && ax <= ox + 52 && ay >= oy + 35 && ay <= oy + 145) return "scarf";
+  if (ax >= ox + 40 && ax <= ox + 190 && ay >= oy + 125 && ay <= oy + 215) return "duck";
+  if (ax >= ox + 20 && ax <= ox + 170 && ay >= oy + 205 && ay <= oy + 275) return "shoes";
   return null;
 }
 function drawPaperdoll(t) {
@@ -49,35 +49,39 @@ function drawPaperdoll(t) {
   const bob = Math.sin(t * 2) * 2;
   const R = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), w, h); };
   g.save();
-  const enter = Math.min(1, dollEnterT / 1.1);
-  const offX = -(1 - enter) * (1 - enter) * 420;
+  const enter = Math.min(1, dollEnterT / 1.2);
+  const ease = 1 - Math.pow(1 - enter, 3);
+  const sc = 0.45 + 0.5 * ease; // wyrasta z maskotki
+  const offX = (1 - ease) * (1 - ease) * 300;
   const stepBob = enter < 1 ? -Math.abs(Math.sin(t * 14)) * 8 : 0;
   const gx = 120 + offX, gy = 5 + stepBob;
   g.translate(gx, gy);
-  g.scale(0.95, 0.95);
+  g.scale(sc, sc);
+  R(ox + 52, oy + 205, 16, 45, "#ff8800");
+  R(ox + 112, oy + 205, 16, 45, "#e07b00");
   const sh = shoeFor();
   if (sh) {
     R(ox + 44, oy + 246, 30, 14, sh.main); R(ox + 104, oy + 246, 30, 14, sh.main);
     R(ox + 44, oy + 258, 30, 4, sh.sole); R(ox + 104, oy + 258, 30, 4, sh.sole);
   } else {
-    R(ox + 50, oy + 240, 16, 16, "#ff8800");
-    R(ox + 110, oy + 240, 16, 16, "#e07b00");
+    R(ox + 50, oy + 246, 16, 14, "#ff8800");
+    R(ox + 110, oy + 246, 16, 14, "#e07b00");
   }
   R(ox + 150, oy + 140, 40, 18, pal.belly);
-  R(ox + 40, oy + 130 + bob, 150, 85, pal.base);
-  R(ox + 40, oy + 190 + bob, 150, 25, pal.belly);
-  R(ox + 70, oy + 150 + bob, 80, 34, pal.wing);
-  R(ox + 8, oy + 40 + bob, 44, 100, pal.base);
-  if (BANDANAS[bandana]) { R(ox + 4, oy + 88 + bob, 52, 16, BANDANAS[bandana]); R(ox + 40, oy + 103 + bob, 12, 16, BANDANAS[bandana]); }
-  R(ox - 18, oy + 2 + bob, 68, 46, pal.base);
-  R(ox - 52, oy + 14 + bob, 34, 12, "#ff8800");
+  R(ox + 40, oy + 125 + bob, 150, 90, pal.base);
+  R(ox + 40, oy + 185 + bob, 150, 30, pal.belly);
+  R(ox + 70, oy + 145 + bob, 80, 34, pal.wing);
+  R(ox + 8, oy + 35 + bob, 44, 110, pal.base);
+  if (BANDANAS[bandana]) { R(ox + 4, oy + 85 + bob, 52, 16, BANDANAS[bandana]); R(ox + 40, oy + 100 + bob, 12, 16, BANDANAS[bandana]); }
+  R(ox - 18, oy - 2 + bob, 68, 50, pal.base);
+  R(ox - 52, oy + 10 + bob, 34, 12, "#ff8800");
   const blink = (t % 4) < 0.15;
   const eyec = pal.eye, hl = pal.eye === "#ffffff" ? "#000000" : "#ffffff";
   if (blink) R(ox + 2, oy + 12 + bob, 16, 4, eyec);
   else { R(ox + 2, oy + 6 + bob, 16, 16, eyec); R(ox + 6, oy + 10 + bob, 5, 5, hl); }
-  drawHat(g, ox + 16, oy + 2 + bob, 3, hat);
+  drawHat(g, ox + 16, oy - 2 + bob, 3, hat);
   g.restore();
-  const T = (ax, ay) => [gx + 0.95 * ax, gy + 0.95 * ay];
+  const T = (ax, ay) => [gx + sc * ax, gy + sc * ay];
   const anchors = { hat: T(ox + 16, oy + 25 + bob), scarf: T(ox + 30, oy + 95 + bob), duck: T(ox + 115, oy + 172 + bob), shoes: T(ox + 80, oy + 252) };
   DOLL_NODES.forEach((n) => {
     const a = anchors[n.slot];
@@ -232,8 +236,9 @@ function saveSettings() {
 }
 function loadSettings() {
   try {
-    const s = JSON.parse(localStorage.getItem("gesi_set") || "null");
-    if (!s) return;
+    const raw = localStorage.getItem("gesi_set");
+    const s = JSON.parse(raw || "null");
+    if (!s) { randomLook(); saveSettings(); return; }
     if (typeof s.v === "number") volume = s.v;
     if (typeof s.fx === "number") volFx = s.fx;
     if (typeof s.mus === "number") volMusic = s.mus;
@@ -262,13 +267,21 @@ function center(e) { return { x: e.x + e.w / 2, y: e.y + e.h / 2 }; }
 // --- dźwięk: pliki WAV + awaryjne piski ---
 let audioCtx = null;
 const SFX = {};
+const ASSET_V = "v12";
 function loadSfx(name) {
   try {
     if (typeof Audio === "undefined") return;
-    const a = new Audio("sounds/" + name + ".wav");
+    const a = new Audio("sounds/" + name + ".wav?" + ASSET_V);
     a.preload = "auto";
     SFX[name] = a;
   } catch (e) {}
+}
+function randomLook() {
+  const cols = Object.keys(BANDANAS);
+  bandana = cols[Math.floor(Math.random() * cols.length)];
+  hat = HATS[Math.floor(Math.random() * HATS.length)];
+  shoes = SHOE_KEYS[Math.floor(Math.random() * SHOE_KEYS.length)];
+  bodyColor = BODY_KEYS[Math.floor(Math.random() * BODY_KEYS.length)];
 }
 ["quack", "eat", "hurt", "win", "level", "trap", "sizzle"].forEach(loadSfx);
 function beep(freq, dur, type) {
@@ -311,7 +324,7 @@ let musicEl = null;
 function startMusic() {
   if (musicEl || typeof Audio === "undefined") return;
   try {
-    musicEl = new Audio("sounds/ambient.wav");
+    musicEl = new Audio("sounds/ambient.wav?" + ASSET_V);
     musicEl.loop = true;
     applyMusicVol();
     const pr = musicEl.play(); if (pr && pr.catch) pr.catch(() => {});
