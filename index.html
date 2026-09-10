@@ -44,7 +44,6 @@
             <button class="big" id="btnSingle">▶ Gra jednoosobowa</button>
             <button class="big" id="btnMulti">👥 Gra wieloosobowa</button>
             <button class="big" id="btnSettings">⚙ Ustawienia</button>
-            <div id="records"></div>
           </div>
           <div class="screen" id="scr-multi" hidden>
             <p><b>Ko-op na 1 ekranie:</b> P1 — WASD + Spacja + E, P2 — strzałki + . + ,</p>
@@ -75,6 +74,14 @@
             <label>Muzyka: <input type="range" id="musicRange" min="0" max="100" value="80"></label>
             <label><input type="checkbox" id="chkSound" checked> Dźwięki</label>
             <label><input type="checkbox" id="chkMusic" checked> Muzyka (ambient)</label>
+            <label>Chusta gęsi: <select id="bandana">
+              <option value="red">Czerwona</option>
+              <option value="blue">Niebieska</option>
+              <option value="green">Zielona</option>
+              <option value="yellow">Żółta</option>
+              <option value="purple">Fioletowa</option>
+              <option value="none">Brak</option>
+            </select></label>
             <div id="set-pc">
               <p class="dim">Klawiatura: WASD/strzałki — ruch, Shift — bieg, Spacja — kwa-kwa, E — pułapka, P — pauza, - / + — głośność.</p>
             </div>
@@ -91,7 +98,10 @@
             <button class="big back" id="btnQuit" hidden>Wyjdź do menu</button>
           </div>
         </div>
-        <canvas id="mascot" width="200" height="260"></canvas>
+        <div class="menuSide">
+          <canvas id="mascot" width="200" height="260"></canvas>
+          <div id="records"></div>
+        </div>
       </div>
       <p id="controls"><span id="controls-pc">Sterowanie: <b>WASD / strzałki</b> — ruch, <b>Shift</b> — bieg,
       <b>Spacja</b> — kwa-kwa, <b>E</b> — pułapka, <b>P</b> — pauza, <b>M</b> — dźwięk,

@@ -61,6 +61,15 @@ let quackFx = 0, muted = false, musicOn = true;
 let levelMsg = 0, volume = 0.8, volFx = 1, volMusic = 0.8, volMsg = 0, shakeT = 0, poisonSndCd = 0;
 let mascotT = 0, mascotPeck = 0, sens = 1, vibOn = true;
 let parts = [];
+let bandana = "red";
+const BANDANAS = { none: null, red: "#e63946", blue: "#3a86ff", green: "#38b000", yellow: "#ffbe0b", purple: "#9d4edd" };
+function bandanaFor(p) {
+  if (p === P2()) {
+    const mine = BANDANAS[bandana];
+    return mine === BANDANAS.blue ? BANDANAS.red : BANDANAS.blue;
+  }
+  return BANDANAS[bandana] || null;
+}
 const mouseLook = { x: 0, y: 0 };
 if (typeof window !== "undefined" && window.addEventListener) {
   window.addEventListener("mousemove", (e) => {
@@ -75,7 +84,7 @@ if (typeof window !== "undefined" && window.addEventListener) {
 }
 
 function saveSettings() {
-  try { localStorage.setItem("gesi_set", JSON.stringify({ v: volume, fx: volFx, mus: volMusic, s: sens, vib: vibOn, mo: musicOn })); } catch (e) {}
+  try { localStorage.setItem("gesi_set", JSON.stringify({ v: volume, fx: volFx, mus: volMusic, s: sens, vib: vibOn, mo: musicOn, b: bandana })); } catch (e) {}
 }
 function loadSettings() {
   try {
@@ -87,6 +96,7 @@ function loadSettings() {
     if (typeof s.s === "number") sens = s.s;
     if (typeof s.vib === "boolean") vibOn = s.vib;
     if (typeof s.mo === "boolean") musicOn = s.mo;
+    if (typeof s.b === "string" && BANDANAS.hasOwnProperty(s.b)) bandana = s.b;
   } catch (e) {}
 }
 
@@ -321,7 +331,7 @@ function drawMascot(t) {
 
 // --- poziomy ---
 function mkPlayer(name, x, runKey) {
-  return { name, x, y: 500, w: 22, h: 22, hp: 100, dir: 1, quackCd: 0, hurtCd: 0, dead: false, runKey };
+  return { name, x, y: 500, w: 22, h: 22, hp: 100, dir: 1, quackCd: 0, hurtCd: 0, chomp: 0, anim: 0, moving: false, dead: false, runKey };
 }
 function newGame(m) {
   mode = m;
@@ -521,6 +531,7 @@ function update(dt) {
         levelBugs++;
         score += 10;
         p.hp = Math.min(100, p.hp + 6);
+        p.chomp = 0.25;
         feather(bc.x, bc.y, 5, ["#c0ff33", "#ffffff"]);
         popup(bc.x, bc.y - 10, "+10", "#c0ff33");
         sndEat();
@@ -529,6 +540,7 @@ function update(dt) {
     }
     p.quackCd = Math.max(0, p.quackCd - dt);
     p.hurtCd = Math.max(0, (p.hurtCd || 0) - dt);
+    p.chomp = Math.max(0, (p.chomp || 0) - dt);
     if (p.hp <= 0) { p.hp = 0; p.dead = true; }
   }
   if (levelBugs >= targetBugs()) exitDoor.open = true;
@@ -618,7 +630,9 @@ function movePlayer(p, dx, dy, dt, forceRun) {
     const len = Math.hypot(dx, dy);
     if (len > 1) { dx /= len; dy /= len; }
     if (dx !== 0) p.dir = dx > 0 ? 1 : -1;
-  }
+    p.moving = true;
+    p.anim += dt * 11;
+  } else p.moving = false;
   const running = (keys[p.runKey] || (p === P1() && touchRun) || forceRun) ? 1.6 : 1.0;
   moveWithWalls(p, dx * 170 * running * dt, dy * 170 * running * dt);
 }
@@ -647,8 +661,16 @@ function endGame(win) {
 }
 
 function drawEnemy(e) {
+  const wob = Math.sin(performance.now() / 180 + e.x * 0.1) * (e.stun > 0 ? 0 : 2);
+  ctx.save();
+  ctx.translate(0, Math.round(wob));
+  drawEnemyBody(e);
+  ctx.restore();
+}
+
+function drawEnemyBody(e) {
   if (e.kind === "ghost") {
-    ctx.globalAlpha = 0.75;
+    ctx.globalAlpha = 0.65 + 0.15 * Math.sin(performance.now() / 300);
     ctx.fillStyle = e.scare > 0 ? "#ffffaa" : "#ddddff";
     ctx.fillRect(e.x, e.y, e.w, e.h);
     ctx.globalAlpha = 1;
@@ -696,16 +718,48 @@ function drawPlayer(p) {
     return;
   }
   ctx.fillStyle = blink ? "#ffaaaa" : (p === P2() ? "#e8f4ff" : "#ffffff");
-  ctx.fillRect(px, py + 6, 22, 14);
-  ctx.fillRect(px + (p.dir > 0 ? 14 : -4), py, 10, 10);
-  ctx.fillStyle = p === P2() ? "#ff4444" : "#ff8800";
-  ctx.fillRect(px + (p.dir > 0 ? 22 : -8), py + 4, 6, 4);
+  const beakC = p === P2() ? "#ff4444" : "#ff8800";
+  const idle = p.moving ? 0 : Math.round(Math.sin(performance.now() / 400) * 1);
+  const swing = p.moving ? Math.round(Math.sin(p.anim) * 3) : 0;
+  const open = (p.chomp > 0) || (quackFx > 0 && p === P1());
+  // nogi kroczą
+  ctx.fillStyle = beakC;
+  ctx.fillRect(px + 4, py + 20, 4, 3 + (p.moving ? swing : 0));
+  ctx.fillRect(px + 14, py + 20, 4, 3 - (p.moving ? swing : 0));
+  // tułów + brzuch
+  ctx.fillStyle = blink ? "#ffaaaa" : (p === P2() ? "#e8f4ff" : "#ffffff");
+  ctx.fillRect(px, py + 6 + idle, 22, 14);
+  ctx.fillStyle = blink ? "#ffaaaa" : "#dfe6ee";
+  ctx.fillRect(px, py + 16 + idle, 22, 4);
+  // skrzydło
+  ctx.fillStyle = "#c8d2dd";
+  ctx.fillRect(px + (p.dir > 0 ? 2 : 12), py + 9 + idle, 8, 6);
+  // szyja + chusta
+  ctx.fillRect(px + (p.dir > 0 ? 14 : 2), py + 2, 6, 8);
+  const bc = bandanaFor(p);
+  if (bc) {
+    ctx.fillStyle = bc;
+    ctx.fillRect(px + (p.dir > 0 ? 13 : 3), py + 6, 8, 4);
+    ctx.fillRect(px + 11, py + 9, 3, 4);
+  }
+  // głowa + dziób (otwiera się przy kwa/jedzeniu)
+  ctx.fillStyle = blink ? "#ffaaaa" : (p === P2() ? "#e8f4ff" : "#ffffff");
+  ctx.fillRect(px + (p.dir > 0 ? 14 : -2), py, 10, 10);
+  ctx.fillStyle = beakC;
+  ctx.fillRect(px + (p.dir > 0 ? 22 : -6), py + 4, 6, 4);
+  if (open) ctx.fillRect(px + (p.dir > 0 ? 22 : -6), py + 8, 6, 3);
+  // oko
   ctx.fillStyle = "#000";
-  ctx.fillRect(px + (p.dir > 0 ? 17 : -1), py + 2, 3, 3);
+  ctx.fillRect(px + (p.dir > 0 ? 17 : 1), py + 2, 3, 3);
+  // pasek HP + tag
   ctx.fillStyle = "#000";
   ctx.fillRect(px - 2, py - 8, 26, 5);
   ctx.fillStyle = p.hp > 50 ? "#00ff00" : (p.hp > 25 ? "#ffcc00" : "#ff0000");
   ctx.fillRect(px - 2, py - 8, 26 * (p.hp / 100), 5);
+  if (mode !== "solo") {
+    ctx.fillStyle = "#fff"; ctx.font = "10px monospace"; ctx.textAlign = "center";
+    ctx.fillText(p === P2() ? "P2" : "P1", px + 11, py - 11);
+  }
 }
 
 function draw() {
@@ -797,6 +851,7 @@ function draw() {
     ctx.font = "14px monospace";
     ctx.fillText("Zbierz " + targetBugs() + " owadów i ucieknij!", W / 2, H / 2 + 8);
   }
+  if (state === "gra") drawSkills();
   if (muted) {
     ctx.fillStyle = "#888"; ctx.font = "12px monospace"; ctx.textAlign = "right";
     ctx.fillText("wyciszone (M)", W - 10, H - 10);
@@ -805,6 +860,48 @@ function draw() {
     ctx.fillText("głośność " + Math.round(volume * 100) + "% (-/+)", W - 10, H - 10);
   }
   ctx.restore();
+}
+
+// --- pasek skilli: pixel-ikony + cooldown + klawisz ---
+function kwaIcon(x, y) {
+  ctx.fillStyle = "#ffffff"; ctx.fillRect(x + 4, y + 8, 24, 16);
+  ctx.fillRect(x + 18, y + 2, 10, 10);
+  ctx.fillStyle = "#ff8800"; ctx.fillRect(x + 26, y + 6, 6, 5);
+  ctx.fillStyle = "#000"; ctx.fillRect(x + 21, y + 4, 3, 3);
+}
+function trapIcon(x, y) {
+  ctx.fillStyle = "#ffcc00"; ctx.fillRect(x + 4, y + 6, 24, 20);
+  ctx.fillStyle = "#000";
+  ctx.fillRect(x + 7, y + 10, 18, 3);
+  ctx.fillRect(x + 7, y + 17, 18, 3);
+}
+function skillSlot(x, y, icon, frac, key, extra) {
+  ctx.fillStyle = "#0d1117"; ctx.fillRect(x, y, 44, 44);
+  icon(x + 6, y + 4);
+  ctx.strokeStyle = frac > 0 ? "#484f58" : "#58a6ff"; ctx.lineWidth = 1;
+  ctx.strokeRect(x + 0.5, y + 0.5, 43, 43);
+  if (frac > 0) { ctx.fillStyle = "rgba(0,0,0,0.65)"; ctx.fillRect(x, y, 44, Math.round(44 * Math.min(1, frac))); }
+  ctx.fillStyle = "#fff"; ctx.font = "10px monospace"; ctx.textAlign = "center";
+  ctx.fillText(key, x + 22, y + 56);
+  if (extra) {
+    ctx.fillStyle = "#ffcc00"; ctx.font = "bold 11px monospace"; ctx.textAlign = "right";
+    ctx.fillText(extra, x + 42, y + 12);
+  }
+}
+function drawSkills() {
+  const rows = mode === "solo" ? [P1()] : [P1(), P2()];
+  const left = Math.max(0, 4 - traps.length);
+  rows.forEach((p, i) => {
+    if (!p) return;
+    const y = H - 70 - i * 62;
+    const tag = mode === "net-guest" ? (p === P2() ? "TY" : "HOST") : (p === P2() ? "P2" : "P1");
+    const k1 = (mode !== "solo" && p === P2() && mode !== "net-guest") ? "." : "SPACJA";
+    const k2 = (mode !== "solo" && p === P2() && mode !== "net-guest") ? "," : "E";
+    ctx.fillStyle = p.dead ? "#555" : "#fff"; ctx.font = "bold 11px monospace"; ctx.textAlign = "left";
+    ctx.fillText(tag, 12, y + 14);
+    skillSlot(46, y, kwaIcon, (p.quackCd || 0) / 2, k1);
+    skillSlot(102, y, trapIcon, left > 0 ? 0 : 1, k2, "x" + left);
+  });
 }
 
 let last = performance.now();
@@ -1051,6 +1148,9 @@ document.getElementById("chkVib").addEventListener("change", (e) => {
   vibOn = e.target.checked;
   saveSettings();
 });
+document.getElementById("bandana").addEventListener("change", (e) => {
+  if (BANDANAS.hasOwnProperty(e.target.value)) { bandana = e.target.value; saveSettings(); }
+});
 
 function syncSettingsUI() {
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
@@ -1062,6 +1162,7 @@ function syncSettingsUI() {
   chk("chkSound", !muted);
   chk("chkMusic", musicOn);
   chk("chkVib", vibOn);
+  const bd = document.getElementById("bandana"); if (bd) bd.value = bandana;
 }
 
 loadSettings();
@@ -1088,6 +1189,8 @@ function fitScale() {
     canvas.style.height = h + "px";
     const st = document.getElementById("stage");
     if (st && st.style) st.style.width = w + "px";
+    const wr = document.getElementById("wrap");
+    if (wr && wr.style) wr.style.width = (w + 40) + "px";
     const tc = document.getElementById("touch");
     if (tc && tc.style) tc.style.width = w + "px";
   } catch (e) {}
