@@ -12,7 +12,7 @@ Zespół: Kaczki • Klasa: 3aTI • Gra: Wielkie przygody gęsi / Zemsta gęsi
 ## 2. KONCEPCJA — poprawki (do sekcji 2)
 - Gatunek: 2D top-down action / survival (single player)
 - Perspektywa: 2D top-down (rzut z góry)
-- Platforma: PC / przeglądarka (HTML5 Canvas, czysty JS; docelowo eksport na game.just4.pl)
+- Platforma: PC / przeglądarka (HTML5 Canvas, czysty JS; gra na just4.pl)
 - High Concept (2 zdania): Budzisz się jako gęś w opuszczonym psychiatryku „Zofiówka” w Otwocku. Zbieraj owady, unikaj sanitariuszy i trucizny, otwórz drzwi i ucieknij — 3 poziomy, zemsta krok po kroku.
 - Wyróżnik: gęś-mściciel w polskim horror-miejscu (Zofiówka), kwa-kwa jako broń + pułapki.
 

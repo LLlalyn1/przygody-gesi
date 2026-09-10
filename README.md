@@ -33,7 +33,7 @@ python -m http.server 8001
 ```
 potem otwórz http://localhost:8001
 
-Docelowo: statyczne pliki na `game.just4.pl` (nginx). Bez bazy, bez logowania.
+Docelowo: statyczne pliki na `just4.pl` (nginx). Bez bazy, bez logowania.
 
 ## Co dalej (po MVP)
 - Multiplayer: ko-op 2 gęsi na jednej klawiaturze, potem online (WebSocket + serwer na porcie 8001)
