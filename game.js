@@ -1,6 +1,6 @@
-// Wielkie przygody gęsi — prototyp v2 (fun)
+// Wielkie przygody gęsi — prototyp v3
 // 2D top-down, HTML5 Canvas, czysty JS. Wszystko po polsku.
-// Poziomy 1-3, pauza, rekordy, pułapki, kwa-kwa.
+// Poziomy 1-3, sanitariusz + DUCH + BOSS, dźwięki z plików, rekordy, dotyk.
 
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
@@ -33,7 +33,7 @@ window.addEventListener("keydown", (e) => {
 });
 window.addEventListener("keyup", (e) => { keys[e.code] = false; });
 
-let state = "menu"; // menu | gra | pauza | miedzy | wygrana | przegrana
+let state = "menu"; // menu | gra | pauza | wygrana | przegrana
 let player = null, enemies = [];
 let bugs = [], traps = [], poisons = [], walls = [];
 let exitDoor = { x: 360, y: 16, w: 80, h: 24, open: false };
@@ -49,8 +49,18 @@ function rectsOverlap(a, b) {
 }
 function center(e) { return { x: e.x + e.w / 2, y: e.y + e.h / 2 }; }
 
-// --- dźwięk (WebAudio, bez plików) ---
+// --- dźwięk: pliki WAV + awaryjne piski WebAudio ---
 let audioCtx = null;
+const SFX = {};
+function loadSfx(name) {
+  try {
+    if (typeof Audio === "undefined") return;
+    const a = new Audio("sounds/" + name + ".wav");
+    a.preload = "auto";
+    SFX[name] = a;
+  } catch (e) {}
+}
+["quack", "eat", "hurt", "win", "level", "trap"].forEach(loadSfx);
 function beep(freq, dur, type) {
   if (muted) return;
   try {
@@ -64,12 +74,68 @@ function beep(freq, dur, type) {
     o.stop(audioCtx.currentTime + dur);
   } catch (e) {}
 }
-function sndQuack() { beep(300, 0.18, "sawtooth"); setTimeout(() => beep(220, 0.2, "sawtooth"), 90); }
-function sndEat() { beep(660, 0.1, "square"); }
-function sndHurt() { beep(120, 0.25, "sawtooth"); }
-function sndWin() { beep(523, 0.15); setTimeout(() => beep(659, 0.15), 150); setTimeout(() => beep(784, 0.3), 300); }
-function sndLevel() { beep(392, 0.12); setTimeout(() => beep(523, 0.2), 130); }
+function sfx(name, freq, dur, type) {
+  if (muted) return;
+  const a = SFX[name];
+  if (a) { try { a.currentTime = 0; const pr = a.play(); if (pr && pr.catch) pr.catch(() => {}); return; } catch (e) {} }
+  beep(freq, dur, type);
+}
+function sndQuack() { sfx("quack", 300, 0.18, "sawtooth"); }
+function sndEat() { sfx("eat", 660, 0.1, "square"); }
+function sndHurt() { sfx("hurt", 120, 0.25, "sawtooth"); }
+function sndWin() { sfx("win", 523, 0.4, "square"); }
+function sndLevel() { sfx("level", 392, 0.2, "square"); }
+function sndTrap() { sfx("trap", 180, 0.15, "square"); }
 function toggleMute() { muted = !muted; }
+
+// --- dotyk: joystick + przyciski ---
+const joy = { active: false, id: null, ox: 0, oy: 0, dx: 0, dy: 0 };
+let touchRun = false;
+function setupTouch() {
+  const hasTouch = (typeof window !== "undefined") && ("ontouchstart" in window || (typeof navigator !== "undefined" && navigator.maxTouchPoints > 0));
+  if (!hasTouch) return;
+  document.body.classList.add("touch");
+  const joyZone = document.getElementById("joy");
+  const stick = document.getElementById("stick");
+  const R = 50;
+  joyZone.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    const t = e.changedTouches[0];
+    joy.active = true; joy.id = t.identifier; joy.ox = t.clientX; joy.oy = t.clientY;
+    joy.dx = 0; joy.dy = 0;
+    stick.style.transform = "translate(0px,0px)";
+  }, { passive: false });
+  window.addEventListener("touchmove", (e) => {
+    if (!joy.active) return;
+    for (const t of e.changedTouches) {
+      if (t.identifier === joy.id) {
+        let dx = t.clientX - joy.ox, dy = t.clientY - joy.oy;
+        const len = Math.hypot(dx, dy) || 1;
+        const cl = Math.min(len, R);
+        dx = dx / len * cl; dy = dy / len * cl;
+        joy.dx = dx / R; joy.dy = dy / R;
+        stick.style.transform = "translate(" + dx + "px," + dy + "px)";
+      }
+    }
+  }, { passive: true });
+  window.addEventListener("touchend", (e) => {
+    for (const t of e.changedTouches) {
+      if (t.identifier === joy.id) {
+        joy.active = false; joy.dx = 0; joy.dy = 0;
+        stick.style.transform = "translate(0px,0px)";
+      }
+    }
+  });
+  const bind = (id, fn) => {
+    const el = document.getElementById(id);
+    el.addEventListener("touchstart", (e) => { e.preventDefault(); fn(true); }, { passive: false });
+    el.addEventListener("touchend", (e) => { e.preventDefault(); fn(false); }, { passive: false });
+  };
+  bind("tQuack", (down) => { if (down) tryQuack(); });
+  bind("tTrap", (down) => { if (down) tryTrap(); });
+  bind("tRun", (down) => { touchRun = down; });
+  bind("tPause", (down) => { if (down) togglePause(); });
+}
 
 // --- rekordy (localStorage TOP5) ---
 function loadRekordy() {
@@ -99,7 +165,7 @@ function showMenu() {
   overlay.classList.remove("hidden");
   ovTitle.textContent = "Wielkie przygody gęsi";
   ovText.innerHTML = "Obudziłeś się jako gęś w psychiatryku „Zofiówka”.<br>" +
-    "Poziomy <b>1–" + MAX_LEVEL + "</b>: zbieraj owady, unikaj sanitariuszy i trucizny, uciekaj drzwiami.";
+    "Poziomy <b>1–" + MAX_LEVEL + "</b>: owady, sanitariusze, <b>DUCH</b> i <b>BOSS-ordynator</b>. Ucieknij drzwiami.";
   btnStart.textContent = "Zacznij grę";
   recordsEl.innerHTML = rekordyHTML();
 }
@@ -113,6 +179,12 @@ function newGame() {
   setupLevel();
   state = "gra";
   overlay.classList.add("hidden");
+}
+
+function mkEnemy(kind, x, y) {
+  if (kind === "boss") return { kind, x, y, w: 42, h: 42, hp: 3, scare: 0, stun: 0, tx: x, ty: y, wait: 0 };
+  if (kind === "ghost") return { kind, x, y, w: 24, h: 24, scare: 0, stun: 0, tx: x, ty: y, wait: 0 };
+  return { kind: "sanit", x, y, w: 26, h: 26, scare: 0, stun: 0, tx: x, ty: y, wait: 0 };
 }
 
 function setupLevel() {
@@ -137,11 +209,9 @@ function setupLevel() {
     { x: 140, y: 340, w: 220, h: 20 },
   ];
   if (level >= 3) walls.push({ x: 420, y: 420, w: 180, h: 20 });
-  enemies = [];
-  const n = level === 1 ? 1 : (level === 2 ? 2 : 2);
-  for (let i = 0; i < n; i++) {
-    enemies.push({ x: 500 + i * 120, y: 130 + i * 60, w: 26, h: 26, scare: 0, stun: 0, tx: 500, ty: 150, wait: 0 });
-  }
+  enemies = [mkEnemy("sanit", 500, 130)];
+  if (level >= 2) enemies.push(mkEnemy("ghost", 620, 400));
+  if (level >= 3) enemies.push(mkEnemy("boss", 400, 300));
   bugs = [];
   for (let i = 0; i < 5; i++) spawnBug();
   quackCd = 0; hurtCd = 0; quackFx = 0;
@@ -166,14 +236,17 @@ function tryQuack() {
   sndQuack();
   const pc = center(player);
   for (const e of enemies) {
-    if (dist(pc, center(e)) < 130) e.scare = 3.0;
+    const d = dist(pc, center(e));
+    if (e.kind === "ghost" && d < 150) e.scare = 4.0;
+    else if (e.kind === "boss" && d < 120) e.scare = 1.0;
+    else if (e.kind === "sanit" && d < 130) e.scare = 3.0;
   }
 }
 
 function tryTrap() {
   if (state !== "gra" || !player || traps.length >= 4) return;
   traps.push({ x: player.x, y: player.y, w: 18, h: 18, life: 25 });
-  beep(440, 0.08);
+  sndTrap();
 }
 
 function togglePause() {
@@ -200,6 +273,11 @@ function moveWithWalls(e, dx, dy) {
   e.y = Math.max(16, Math.min(H - 16 - e.h, e.y));
 }
 
+function moveGhost(e, dx, dy) {
+  e.x = Math.max(16, Math.min(W - 16 - e.w, e.x + dx));
+  e.y = Math.max(16, Math.min(H - 16 - e.h, e.y + dy));
+}
+
 function updateHUD() {
   hpEl.textContent = Math.ceil(player.hp);
   bugsEl.textContent = Math.min(player.levelBugs, targetBugs()) + "/" + targetBugs();
@@ -216,16 +294,15 @@ function update(dt) {
   quackFx = Math.max(0, quackFx - dt);
   levelMsg = Math.max(0, levelMsg - dt);
 
-  let dx = 0, dy = 0;
+  let dx = joy.dx, dy = joy.dy;
   if (keys["KeyA"] || keys["ArrowLeft"]) dx -= 1;
   if (keys["KeyD"] || keys["ArrowRight"]) dx += 1;
   if (keys["KeyW"] || keys["ArrowUp"]) dy -= 1;
   if (keys["KeyS"] || keys["ArrowDown"]) dy += 1;
-  if (dx !== 0 || dy !== 0) {
-    const len = Math.hypot(dx, dy); dx /= len; dy /= len;
-    if (dx !== 0) player.dir = dx > 0 ? 1 : -1;
-  }
-  const running = (keys["ShiftLeft"] || keys["ShiftRight"]) ? 1.6 : 1.0;
+  const jl = Math.hypot(dx, dy);
+  if (jl > 1) { dx /= jl; dy /= jl; }
+  if (dx !== 0) player.dir = dx > 0 ? 1 : -1;
+  const running = (keys["ShiftLeft"] || keys["ShiftRight"] || touchRun) ? 1.6 : 1.0;
   moveWithWalls(player, dx * 170 * running * dt, dy * 170 * running * dt);
 
   const pc = center(player);
@@ -248,11 +325,19 @@ function update(dt) {
   for (let i = traps.length - 1; i >= 0; i--) {
     traps[i].life -= dt;
     if (traps[i].life <= 0) { traps.splice(i, 1); continue; }
-    for (const e of enemies) {
+    for (let j = enemies.length - 1; j >= 0; j--) {
+      const e = enemies[j];
       if (rectsOverlap(e, traps[i]) && e.stun <= 0) {
-        e.stun = 3.0;
-        traps.splice(i, 1);
-        beep(180, 0.2, "square");
+        if (e.kind === "boss") {
+          e.hp -= 1; e.stun = 2.0;
+          traps.splice(i, 1);
+          sndTrap();
+          if (e.hp <= 0) { enemies.splice(j, 1); player.score += 100; sndWin(); }
+        } else {
+          e.stun = 3.0;
+          traps.splice(i, 1);
+          sndTrap();
+        }
         break;
       }
     }
@@ -263,23 +348,28 @@ function update(dt) {
     e.scare = Math.max(0, e.scare - dt);
     e.stun = Math.max(0, e.stun - dt);
     const ec = center(e);
-    if (e.stun > 0) continue;
-    if (e.scare > 0) {
-      const a = Math.atan2(ec.y - pc.y, ec.x - pc.x);
-      moveWithWalls(e, Math.cos(a) * 135 * dt, Math.sin(a) * 135 * dt);
-    } else if (dist(pc, ec) < 240) {
-      const a = Math.atan2(pc.y - ec.y, pc.x - ec.x);
-      moveWithWalls(e, Math.cos(a) * spd * dt, Math.sin(a) * spd * dt);
-    } else {
-      e.wait -= dt;
-      if (Math.hypot(e.tx - ec.x, e.ty - ec.y) < 12 || e.wait <= 0) {
-        e.tx = rand(60, 700); e.ty = rand(60, 520); e.wait = rand(1, 3);
+    const espd = e.kind === "ghost" ? 150 : (e.kind === "boss" ? 100 : spd);
+    const chaseR = e.kind === "ghost" ? 300 : 240;
+    const mv = (mx, my) => { if (e.kind === "ghost") moveGhost(e, mx, my); else moveWithWalls(e, mx, my); };
+    if (e.stun <= 0) {
+      if (e.scare > 0) {
+        const a = Math.atan2(ec.y - pc.y, ec.x - pc.x);
+        mv(Math.cos(a) * 135 * dt, Math.sin(a) * 135 * dt);
+      } else if (dist(pc, ec) < chaseR) {
+        const a = Math.atan2(pc.y - ec.y, pc.x - ec.x);
+        mv(Math.cos(a) * espd * dt, Math.sin(a) * espd * dt);
+      } else {
+        e.wait -= dt;
+        if (Math.hypot(e.tx - ec.x, e.ty - ec.y) < 12 || e.wait <= 0) {
+          e.tx = rand(60, 700); e.ty = rand(60, 520); e.wait = rand(1, 3);
+        }
+        const a = Math.atan2(e.ty - ec.y, e.tx - ec.x);
+        mv(Math.cos(a) * 70 * dt, Math.sin(a) * 70 * dt);
       }
-      const a = Math.atan2(e.ty - ec.y, e.tx - ec.x);
-      moveWithWalls(e, Math.cos(a) * 70 * dt, Math.sin(a) * 70 * dt);
     }
+    const dmg = e.kind === "boss" ? 25 : 16;
     if (rectsOverlap(player, e) && hurtCd <= 0 && e.stun <= 0 && e.scare <= 0) {
-      player.hp -= 16;
+      player.hp -= dmg;
       hurtCd = 0.9;
       sndHurt();
     }
@@ -323,6 +413,33 @@ function endGame(win) {
 }
 
 function drawEnemy(e) {
+  if (e.kind === "ghost") {
+    ctx.globalAlpha = 0.75;
+    ctx.fillStyle = e.scare > 0 ? "#ffffaa" : "#ddddff";
+    ctx.fillRect(e.x, e.y, e.w, e.h);
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "#000";
+    ctx.fillRect(e.x + 5, e.y + 6, 4, 4);
+    ctx.fillRect(e.x + 15, e.y + 6, 4, 4);
+    ctx.fillRect(e.x + 8, e.y + 16, 8, 2);
+    return;
+  }
+  if (e.kind === "boss") {
+    const es = e.stun > 0 ? "#888888" : "#aa0000";
+    ctx.fillStyle = es;
+    ctx.fillRect(e.x, e.y, e.w, e.h);
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(e.x + 8, e.y + 6, 26, 8);
+    ctx.fillStyle = "#000";
+    ctx.fillRect(e.x + 18, e.y + 6, 6, 22);
+    ctx.fillRect(e.x + 10, e.y + 28, 8, 8);
+    ctx.fillRect(e.x + 24, e.y + 28, 8, 8);
+    for (let i = 0; i < 3; i++) {
+      ctx.fillStyle = i < e.hp ? "#ff0000" : "#330000";
+      ctx.fillRect(e.x + i * 14, e.y - 10, 12, 6);
+    }
+    return;
+  }
   const es = e.stun > 0 ? "#888888" : (e.scare > 0 ? "#ffcc00" : "#ff5555");
   ctx.fillStyle = es;
   ctx.fillRect(e.x, e.y, e.w, e.h);
@@ -427,6 +544,7 @@ btnStart.addEventListener("click", () => {
   newGame();
 });
 
+setupTouch();
 showMenu();
 draw();
 requestAnimationFrame(loop);

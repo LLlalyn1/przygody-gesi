@@ -14,9 +14,18 @@ otwieraj **drzwi** i uciekaj. Wygrana po 3 poziomach, przegrana przy HP 0.
 ## Sterowanie
 - **WASD / strzałki** — ruch
 - **Shift** — bieg
-- **Spacja** — kwa-kwa (odstrasza, cooldown 2 s, promień 130)
+- **Spacja** — kwa-kwa (odstrasza, cooldown 2 s)
 - **E** — pułapka (max 4, stun 3 s)
 - **P / Esc** — pauza, **M** — wyciszenie
+- **Telefon**: joystick (lewa) + przyciski KWA / PUŁ. / BIEG
+
+## Wrogowie
+- **Sanitariusz** (poz. 1–3): patrol / pościg, boi się kwa-kwa 3 s
+- **DUCH pacjentki** (poz. 2–3): szybki, przechodzi przez ściany, boi się kwa-kwa 4 s
+- **BOSS-ordynator** (poz. 3): duży, 3 życia (tylko pułapki), +100 pkt za pokonanie
+
+## Dźwięki
+Pliki `sounds/*.wav` (kwa, jedzenie, obrażenia, wygrana...), awaryjnie piski WebAudio.
 
 ## Mechaniki (MVP)
 1. Ruch + bieg z kolizjami ze ścianami
