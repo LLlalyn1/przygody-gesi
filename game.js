@@ -164,7 +164,10 @@ const keys = {};
 window.addEventListener("keydown", (e) => {
   keys[e.code] = true;
   if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].includes(e.code)) e.preventDefault();
-  if (e.code === "KeyP" || e.code === "Escape") { togglePause(); return; }
+  if (e.code === "KeyP" || e.code === "Escape") {
+    if ((mode === "net-host" || mode === "net-guest") && state === "gra") { leaveRoom(); showMenu(); return; }
+    togglePause(); return;
+  }
   if (e.code === "KeyM") { toggleMute(); return; }
   if (e.code === "Minus" || e.code === "NumpadSubtract") { changeVolume(-0.1); return; }
   if (e.code === "Equal" || e.code === "NumpadAdd") { changeVolume(0.1); return; }
@@ -691,6 +694,7 @@ function update(dt) {
   if (mode === "net-guest") {
     elapsed = (performance.now() - startTime) / 1000;
     sendInput();
+    if (score > (net.lastScore || 0)) { sndEat(); net.lastScore = score; }
     updateParts(dt);
     updateHUD();
     return;
@@ -846,13 +850,13 @@ function endGame(win) {
     saveRekord(score, level);
     showMsg("WYGRANA! Zemsta dokonana",
       "Gęś " + (mode === "coop" ? "uciekinierki" : "") + " uciekły ze Zofiówki (3 poziomy).<br>Punkty: <b>" + score + "</b> • Czas: <b>" + timeEl.textContent + "</b>",
-      "Zagraj ponownie", true);
+      (mode === "net-host" || mode === "net-guest") ? "Do menu" : "Zagraj ponownie", true);
     sndWin();
   } else {
     saveRekord(score, level);
     showMsg("PRZEGRANA (poziom " + level + ")",
       "Złapano cię w Zofiówce.<br>Punkty: <b>" + score + "</b>",
-      "Spróbuj ponownie", true);
+      (mode === "net-host" || mode === "net-guest") ? "Do menu" : "Spróbuj ponownie", true);
     sndHurt();
   }
   scoreEl.textContent = score;
@@ -1221,6 +1225,7 @@ document.getElementById("btnSettings").addEventListener("click", uiClick(() => s
 document.querySelectorAll("[data-back]").forEach((b) => b.addEventListener("click", uiClick(() => showScreen("scr-main"))));
 btnStart.addEventListener("click", uiClick(() => {
   if (state === "pauza") { togglePause(); return; }
+  if (mode === "net-host" || mode === "net-guest") { leaveRoom(); showMenu(); return; }
   newGame(mode);
 }));
 document.getElementById("btnQuit").addEventListener("click", uiClick(() => { leaveRoom(); showMenu(); }));
@@ -1326,7 +1331,9 @@ function leaveRoom() {
   refreshRooms();
 }
 function applyState(m) {
+  mode = "net-guest";
   level = m.level || 1; score = m.score || 0; levelBugs = m.levelBugs || 0;
+  net.lastScore = score;
   elapsed = m.elapsed || 0;
   exitDoor = m.exitDoor || exitDoor;
   walls = m.walls || []; poisons = m.poisons || [];

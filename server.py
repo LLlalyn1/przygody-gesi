@@ -82,7 +82,7 @@ async def handle(ws):
                 await send(ws, {"t": "rooms", "rooms": public_rooms()})
 
             elif t == "create":
-                await leave_room(ws, notify=False)
+                await leave_room(ws)
                 name = str(msg.get("name", "Ges"))[:16] or "Ges"
                 code = gen_code()
                 rooms[code] = {"priv": bool(msg.get("priv")), "members": {ws: {"id": 1, "name": name}}}
@@ -91,7 +91,7 @@ async def handle(ws):
                                 "priv": rooms[code]["priv"], "players": [name]})
 
             elif t == "join":
-                await leave_room(ws, notify=False)
+                await leave_room(ws)
                 code = str(msg.get("code", "")).upper().strip()
                 name = str(msg.get("name", "Ges"))[:16] or "Ges"
                 room = rooms.get(code)
