@@ -33,15 +33,6 @@
   <div id="overlay">
     <div id="overlayBox">
       <div class="menuHead">
-        <svg id="logo" viewBox="0 0 32 32" shape-rendering="crispEdges">
-          <rect width="32" height="32" fill="#1a1f2b"/>
-          <rect x="6" y="16" width="14" height="9" fill="#ffffff"/>
-          <rect x="18" y="8" width="7" height="9" fill="#ffffff"/>
-          <rect x="25" y="11" width="4" height="3" fill="#ff8800"/>
-          <rect x="20" y="10" width="2" height="2" fill="#000000"/>
-          <rect x="8" y="25" width="3" height="3" fill="#ff8800"/>
-          <rect x="14" y="25" width="3" height="3" fill="#ff8800"/>
-        </svg>
         <div>
           <h2 id="ovTitle">Wielkie przygody gęsi</h2>
           <div class="tagline">„Zemsta gęsi”</div>
@@ -68,7 +59,9 @@
             <button class="back" data-back>Wróć</button>
           </div>
           <div class="screen" id="scr-settings" hidden>
-            <label>Głośność: <input type="range" id="volRange" min="0" max="100" value="80"></label>
+            <label>Wszystko: <input type="range" id="volRange" min="0" max="100" value="80"></label>
+            <label>Efekty: <input type="range" id="fxRange" min="0" max="100" value="100"></label>
+            <label>Muzyka: <input type="range" id="musicRange" min="0" max="100" value="80"></label>
             <label><input type="checkbox" id="chkSound" checked> Dźwięki</label>
             <label><input type="checkbox" id="chkMusic" checked> Muzyka (ambient)</label>
             <div id="set-pc">
@@ -89,9 +82,9 @@
         </div>
         <canvas id="mascot" width="200" height="260"></canvas>
       </div>
-      <p id="controls">Sterowanie: <b>WASD / strzałki</b> — ruch, <b>Shift</b> — bieg,
+      <p id="controls"><span id="controls-pc">Sterowanie: <b>WASD / strzałki</b> — ruch, <b>Shift</b> — bieg,
       <b>Spacja</b> — kwa-kwa, <b>E</b> — pułapka, <b>P</b> — pauza, <b>M</b> — dźwięk,
-      <b>- / +</b> — głośność. Na telefonie: joystick + przyciski.</p>
+      <b>- / +</b> — głośność.</span><span id="controls-touch">Sterowanie: <b>joystick</b> — ruch, przyciski <b>KWA / PUŁ. / BIEG</b>.</span></p>
     </div>
   </div>
   </div>

@@ -53,9 +53,25 @@ let bugs = [], traps = [], poisons = [], walls = [];
 let exitDoor = { x: 360, y: 16, w: 80, h: 24, open: false };
 let level = 1, startTime = 0, elapsed = 0, score = 0, levelBugs = 0;
 let quackFx = 0, muted = false, musicOn = true;
-let levelMsg = 0, volume = 0.8, volMsg = 0, shakeT = 0, poisonSndCd = 0;
-let mascotT = 0, sens = 1, vibOn = true;
+let levelMsg = 0, volume = 0.8, volFx = 1, volMusic = 0.8, volMsg = 0, shakeT = 0, poisonSndCd = 0;
+let mascotT = 0, mascotExcite = 0, sens = 1, vibOn = true;
 let parts = [];
+
+function saveSettings() {
+  try { localStorage.setItem("gesi_set", JSON.stringify({ v: volume, fx: volFx, mus: volMusic, s: sens, vib: vibOn, mo: musicOn })); } catch (e) {}
+}
+function loadSettings() {
+  try {
+    const s = JSON.parse(localStorage.getItem("gesi_set") || "null");
+    if (!s) return;
+    if (typeof s.v === "number") volume = s.v;
+    if (typeof s.fx === "number") volFx = s.fx;
+    if (typeof s.mus === "number") volMusic = s.mus;
+    if (typeof s.s === "number") sens = s.s;
+    if (typeof s.vib === "boolean") vibOn = s.vib;
+    if (typeof s.mo === "boolean") musicOn = s.mo;
+  } catch (e) {}
+}
 
 function P1() { return players[0]; }
 function P2() { return players[1]; }
@@ -81,22 +97,22 @@ function loadSfx(name) {
 }
 ["quack", "eat", "hurt", "win", "level", "trap", "sizzle"].forEach(loadSfx);
 function beep(freq, dur, type) {
-  if (muted || volume <= 0) return;
+  if (muted || volume <= 0 || volFx <= 0) return;
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     const o = audioCtx.createOscillator();
     const g = audioCtx.createGain();
     o.type = type || "square"; o.frequency.value = freq;
-    g.gain.value = 0.06 * volume;
+    g.gain.value = 0.06 * volume * volFx;
     o.connect(g); g.connect(audioCtx.destination);
     o.start(); g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
     o.stop(audioCtx.currentTime + dur);
   } catch (e) {}
 }
 function sfx(name, freq, dur, type) {
-  if (muted || volume <= 0) return;
+  if (muted || volume <= 0 || volFx <= 0) return;
   const a = SFX[name];
-  if (a) { try { a.volume = volume; a.currentTime = 0; const pr = a.play(); if (pr && pr.catch) pr.catch(() => {}); return; } catch (e) {} }
+  if (a) { try { a.volume = volume * volFx; a.currentTime = 0; const pr = a.play(); if (pr && pr.catch) pr.catch(() => {}); return; } catch (e) {} }
   beep(freq, dur, type);
 }
 function sndQuack() { sfx("quack", 300, 0.18, "sawtooth"); }
@@ -111,6 +127,7 @@ function changeVolume(d) {
   volMsg = 1.5;
   const r = document.getElementById("volRange"); if (r) r.value = Math.round(volume * 100);
   applyMusicVol();
+  saveSettings();
   if (d > 0 && volume > 0) beep(520, 0.07, "square");
 }
 
@@ -126,7 +143,7 @@ function startMusic() {
   } catch (e) {}
 }
 function applyMusicVol() {
-  if (musicEl) { try { musicEl.volume = (musicOn && !muted) ? 0.3 * volume : 0; } catch (e) {} }
+  if (musicEl) { try { musicEl.volume = (musicOn && !muted) ? 0.3 * volume * volMusic : 0; } catch (e) {} }
 }
 
 // --- dotyk: joystick + przyciski (gracz 1) ---
@@ -211,6 +228,7 @@ function showScreen(id) {
 function showMenu() {
   state = "menu";
   overlay.classList.remove("hidden");
+  document.getElementById("hud").style.display = "none";
   ovTitle.textContent = "Wielkie przygody gęsi";
   showScreen("scr-main");
   recordsEl.innerHTML = rekordyHTML();
@@ -230,12 +248,14 @@ function drawMascot(t) {
   if (!mctx) return;
   mctx.clearRect(0, 0, 200, 260);
   const cyc = t % 10;
-  const kwa = cyc > 9.0;
+  const exc = Math.min(1, mascotExcite);
+  const kwa = cyc > 9.0 || exc > 0.25;
   const flap = (t % 7) < 0.6;
-  const hop = kwa ? -Math.sin((cyc - 9.0) * Math.PI) * 26 : 0;
+  let hop = kwa && exc <= 0.25 ? -Math.sin((cyc - 9.0) * Math.PI) * 26 : 0;
+  if (exc > 0) hop += -Math.abs(Math.sin(t * 9)) * 12 * exc;
   const bob = Math.sin(t * 2) * 2;
   const R = (x, y, w, h, c) => { mctx.fillStyle = c; mctx.fillRect(Math.round(x), Math.round(y), w, h); };
-  const bx = 45, by = 118 + bob + hop;
+  const bx = 45 - 24 * exc, by = 118 + bob + hop;
   R(30, 236, 140, 6, "#000");                       // cień
   R(bx + 8, by + 84, 12, 14, "#ff8800");            // nogi
   R(bx + 62, by + 84, 12, 14, "#e07b00");
@@ -279,6 +299,7 @@ function newGame(m) {
   elapsed = 0;
   setupLevel();
   state = "gra";
+  document.getElementById("hud").style.display = "flex";
   overlay.classList.add("hidden");
 }
 
@@ -745,15 +766,28 @@ function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   mascotT += dt;
+  mascotExcite = Math.max(0, mascotExcite - dt);
   if (state === "gra") update(dt);
   draw();
   if (state === "menu" && !overlay.classList.contains("hidden")) drawMascot(mascotT);
   requestAnimationFrame(loop);
 }
 
-// --- przyciski menu ---
+// --- przyciski menu: guś sam "wciska" przycisk ---
 function uiClick(fn) {
-  return () => { startMusic(); try { if (audioCtx && audioCtx.state === "suspended") audioCtx.resume(); } catch (e) {} fn(); };
+  return (ev) => {
+    startMusic();
+    try { if (audioCtx && audioCtx.state === "suspended") audioCtx.resume(); } catch (e) {}
+    mascotExcite = 1.4;
+    const btn = ev && ev.currentTarget;
+    if (btn && btn.classList) {
+      btn.classList.remove("pressed");
+      void btn.offsetWidth;
+      btn.classList.add("pressed");
+      setTimeout(() => btn.classList.remove("pressed"), 350);
+    }
+    setTimeout(fn, 180);
+  };
 }
 document.getElementById("btnSingle").addEventListener("click", uiClick(() => newGame("solo")));
 document.getElementById("btnCoop").addEventListener("click", uiClick(() => newGame("coop")));
@@ -779,14 +813,27 @@ document.getElementById("volRange").addEventListener("input", (e) => {
   volume = e.target.value / 100;
   volMsg = 1.5;
   applyMusicVol();
+  saveSettings();
+});
+document.getElementById("fxRange").addEventListener("input", (e) => {
+  volFx = e.target.value / 100;
+  saveSettings();
+  beep(660, 0.08, "square");
+});
+document.getElementById("musicRange").addEventListener("input", (e) => {
+  volMusic = e.target.value / 100;
+  applyMusicVol();
+  saveSettings();
 });
 document.getElementById("chkSound").addEventListener("change", (e) => {
   muted = !e.target.checked;
   applyMusicVol();
+  saveSettings();
 });
 document.getElementById("chkMusic").addEventListener("change", (e) => {
   musicOn = e.target.checked;
   applyMusicVol();
+  saveSettings();
 });
 document.getElementById("btnWipe").addEventListener("click", () => {
   try { localStorage.removeItem("gesi_rekordy"); } catch (e) {}
@@ -794,11 +841,27 @@ document.getElementById("btnWipe").addEventListener("click", () => {
 });
 document.getElementById("sensRange").addEventListener("input", (e) => {
   sens = e.target.value / 100;
+  saveSettings();
 });
 document.getElementById("chkVib").addEventListener("change", (e) => {
   vibOn = e.target.checked;
+  saveSettings();
 });
 
+function syncSettingsUI() {
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+  const chk = (id, v) => { const el = document.getElementById(id); if (el) el.checked = v; };
+  set("volRange", Math.round(volume * 100));
+  set("fxRange", Math.round(volFx * 100));
+  set("musicRange", Math.round(volMusic * 100));
+  set("sensRange", Math.round(sens * 100));
+  chk("chkSound", !muted);
+  chk("chkMusic", musicOn);
+  chk("chkVib", vibOn);
+}
+
+loadSettings();
+syncSettingsUI();
 setupTouch();
 showMenu();
 draw();
