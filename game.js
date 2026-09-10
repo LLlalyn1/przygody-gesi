@@ -165,6 +165,7 @@ window.addEventListener("keydown", (e) => {
   keys[e.code] = true;
   if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].includes(e.code)) e.preventDefault();
   if (e.code === "KeyP" || e.code === "Escape") {
+    if (e.code === "Escape" && (state === "gra" || state === "pauza")) { leaveRoom(); showMenu(); return; }
     if ((mode === "net-host" || mode === "net-guest") && state === "gra") { leaveRoom(); showMenu(); return; }
     togglePause(); return;
   }
@@ -1211,6 +1212,7 @@ document.getElementById("btnJoin").addEventListener("click", () => {
 });
 document.getElementById("btnLeave").addEventListener("click", () => { leaveRoom(); netMsg("Opuszczono pokój."); });
 document.getElementById("btnNetStart").addEventListener("click", uiClick(() => {
+  if (net.names.length < 2) { netMsg("Nikt nie dołączył — poczekaj na gościa."); return; }
   mode = "net-host";
   players = [mkPlayer("Host", 80, "ShiftLeft"), mkPlayer("Gość", 150, "ShiftRight")];
   level = 1; score = 0; levelBugs = 0;
@@ -1276,7 +1278,10 @@ function ensureWs() {
         "Do menu", true);
       scoreEl.textContent = score;
     }
-    else if (m.t === "state" && mode === "net-guest") applyState(m);
+    else if (m.t === "state") {
+      // pierwsza klatka wciąga gościa do gry (tryb ustawia applyState)
+      if (mode === "net-guest" || state === "menu") applyState(m);
+    }
     else if (m.t === "input" && mode === "net-host") {
       net.guest = { dx: m.dx || 0, dy: m.dy || 0, run: !!m.run };
       if (m.q && P2()) tryQuack(P2());
@@ -1308,8 +1313,10 @@ function renderRooms(rooms) {
 }
 function refreshRooms() {
   const ws = ensureWs();
-  if (ws && ws.readyState === 1) ws.send(JSON.stringify({ t: "list" }));
-  else setTimeout(refreshRooms, 1000);
+  if (ws && ws.readyState === 1) { try { ws.send(JSON.stringify({ t: "list" })); } catch (e) {} return; }
+  try {
+    if (!document.getElementById("scr-multi").hidden) setTimeout(refreshRooms, 1500);
+  } catch (e) {}
 }
 function joinRoom(code) {
   const ws = ensureWs();
