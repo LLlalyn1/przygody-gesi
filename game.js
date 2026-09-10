@@ -12,14 +12,28 @@ const doll = document.getElementById("paperdoll");
 const dctx = doll && doll.getContext ? doll.getContext("2d") : null;
 if (dctx) dctx.imageSmoothingEnabled = false;
 const DOLL_NODES = [
-  { slot: "hat", label: "Głowa", x: 66, y: 74, r: 24 },
-  { slot: "scarf", label: "Szyja", x: 498, y: 130, r: 24 },
-  { slot: "duck", label: "Ciało", x: 498, y: 192, r: 24 },
-  { slot: "shoes", label: "Nogi", x: 66, y: 256, r: 24 }
+  { slot: "hat", label: "Głowa", x: 105, y: 60, r: 24 },
+  { slot: "scarf", label: "Szyja", x: 460, y: 125, r: 24 },
+  { slot: "duck", label: "Ciało", x: 460, y: 205, r: 24 },
+  { slot: "shoes", label: "Nogi", x: 105, y: 275, r: 24 }
 ];
+let dollEnterT = 99;
+// klik w węzeł = następny wariant
+function cycleSlot(slot) {
+  if (slot === "duck") bodyColor = BODY_KEYS[(BODY_KEYS.indexOf(bodyColor) + 1) % BODY_KEYS.length];
+  else if (slot === "scarf") {
+    const ks = Object.keys(BANDANAS);
+    bandana = ks[(ks.indexOf(bandana) + 1) % ks.length];
+  }
+  else if (slot === "hat") hat = HATS[(HATS.indexOf(hat) + 1) % HATS.length];
+  else if (slot === "shoes") shoes = SHOE_KEYS[(SHOE_KEYS.indexOf(shoes) + 1) % SHOE_KEYS.length];
+  saveSettings();
+  setTab(slot);
+  sndEat();
+}
 // --- paper-doll: gęś na środku, linie do węzłów, klik wybiera slot ---
 function dollPartAt(x, y) {
-  const ax = (x - 150) / 0.8, ay = (y - 10) / 0.8;
+  const ax = (x - 120) / 0.95, ay = (y - 5) / 0.95;
   const ox = 50, oy = 55;
   if (ax >= ox - 52 && ax <= ox + 50 && ay >= oy - 8 && ay <= oy + 60) return "hat";
   if (ax >= ox + 8 && ax <= ox + 52 && ay >= oy + 40 && ay <= oy + 140) return "scarf";
@@ -35,14 +49,19 @@ function drawPaperdoll(t) {
   const bob = Math.sin(t * 2) * 2;
   const R = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), w, h); };
   g.save();
-  g.translate(150, 10);
-  g.scale(0.8, 0.8);
-  R(ox + 50, oy + 240, 16, 16, "#ff8800");
-  R(ox + 110, oy + 240, 16, 16, "#e07b00");
+  const enter = Math.min(1, dollEnterT / 1.1);
+  const offX = -(1 - enter) * (1 - enter) * 420;
+  const stepBob = enter < 1 ? -Math.abs(Math.sin(t * 14)) * 8 : 0;
+  const gx = 120 + offX, gy = 5 + stepBob;
+  g.translate(gx, gy);
+  g.scale(0.95, 0.95);
   const sh = shoeFor();
   if (sh) {
-    R(ox + 46, oy + 248, 26, 12, sh.main); R(ox + 106, oy + 248, 26, 12, sh.main);
-    R(ox + 46, oy + 258, 26, 4, sh.sole); R(ox + 106, oy + 258, 26, 4, sh.sole);
+    R(ox + 44, oy + 246, 30, 14, sh.main); R(ox + 104, oy + 246, 30, 14, sh.main);
+    R(ox + 44, oy + 258, 30, 4, sh.sole); R(ox + 104, oy + 258, 30, 4, sh.sole);
+  } else {
+    R(ox + 50, oy + 240, 16, 16, "#ff8800");
+    R(ox + 110, oy + 240, 16, 16, "#e07b00");
   }
   R(ox + 150, oy + 140, 40, 18, pal.belly);
   R(ox + 40, oy + 130 + bob, 150, 85, pal.base);
@@ -56,9 +75,9 @@ function drawPaperdoll(t) {
   const eyec = pal.eye, hl = pal.eye === "#ffffff" ? "#000000" : "#ffffff";
   if (blink) R(ox + 2, oy + 12 + bob, 16, 4, eyec);
   else { R(ox + 2, oy + 6 + bob, 16, 16, eyec); R(ox + 6, oy + 10 + bob, 5, 5, hl); }
-  drawHat(g, ox + 16, oy + 2 + bob, 2.2, hat);
+  drawHat(g, ox + 16, oy + 2 + bob, 3, hat);
   g.restore();
-  const T = (ax, ay) => [150 + 0.8 * ax, 10 + 0.8 * ay];
+  const T = (ax, ay) => [gx + 0.95 * ax, gy + 0.95 * ay];
   const anchors = { hat: T(ox + 16, oy + 25 + bob), scarf: T(ox + 30, oy + 95 + bob), duck: T(ox + 115, oy + 172 + bob), shoes: T(ox + 80, oy + 252) };
   DOLL_NODES.forEach((n) => {
     const a = anchors[n.slot];
@@ -97,10 +116,10 @@ if (doll) doll.addEventListener("click", (e) => {
     const x = (e.clientX - r.left) * 560 / r.width;
     const y = (e.clientY - r.top) * 340 / r.height;
     for (const n of DOLL_NODES) {
-      if (Math.hypot(x - n.x, y - n.y) < n.r + 8) { setTab(n.slot); sndEat(); return; }
+      if (Math.hypot(x - n.x, y - n.y) < n.r + 8) { cycleSlot(n.slot); return; }
     }
     const part = dollPartAt(x, y);
-    if (part) { setTab(part); sndEat(); }
+    if (part) cycleSlot(part);
   } catch (err) {}
 });
 
@@ -384,6 +403,7 @@ function showScreen(id) {
   if (rec) rec.style.display = (id === "scr-main") ? "" : "none";
   const ob = document.getElementById("overlayBox");
   if (ob) ob.classList.toggle("wide", id === "scr-custom");
+  if (id === "scr-custom") dollEnterT = 0;
   if (mascot && mascot.style) mascot.style.display = (id === "scr-custom") ? "none" : "";
 }
 function showMenu() {
@@ -1085,6 +1105,7 @@ function loop(now) {
   last = now;
   mascotT += dt;
   mascotPeck = Math.max(0, mascotPeck - dt);
+  dollEnterT = Math.min(99, dollEnterT + dt);
   if (state === "menu") {
     // gąską w menu sterujesz (WASD / strzałki / joystick)
     let mdx = ((keys["KeyA"] || keys["ArrowLeft"]) ? -1 : 0) + ((keys["KeyD"] || keys["ArrowRight"]) ? 1 : 0);
