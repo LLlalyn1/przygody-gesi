@@ -63,6 +63,15 @@ let mascotT = 0, mascotPeck = 0, sens = 1, vibOn = true;
 let parts = [];
 let bandana = "red", hat = "none", nick = "";
 const BANDANAS = { none: null, red: "#e63946", blue: "#3a86ff", green: "#38b000", yellow: "#ffbe0b", purple: "#9d4edd" };
+let bodyColor = "white";
+const BODIES = {
+  white: { base: "#ffffff", belly: "#dfe6ee", wing: "#c8d2dd", wing2: "#aeb9c6", eye: "#000000" },
+  gray: { base: "#9aa0a6", belly: "#c3c9d1", wing: "#7b8188", wing2: "#5f656d", eye: "#000000" },
+  brown: { base: "#8a5a2b", belly: "#b07a3f", wing: "#6e4520", wing2: "#54330f", eye: "#000000" },
+  black: { base: "#26262b", belly: "#3d3d45", wing: "#17171b", wing2: "#0c0c0f", eye: "#ffffff" }
+};
+const BODY_KEYS = ["white", "gray", "brown", "black"];
+function bodyPal() { return BODIES[bodyColor] || BODIES.white; }
 const HATS = ["none", "cylinder", "beanie", "helmet"];
 const SHOES = { none: null, adidasy: { main: "#e63946", sole: "#ffffff" }, kalosze: { main: "#ffbe0b", sole: "#5a3c00" } };
 const SHOE_KEYS = ["none", "adidasy", "kalosze"];
@@ -105,7 +114,7 @@ if (typeof window !== "undefined" && window.addEventListener) {
 }
 
 function saveSettings() {
-  try { localStorage.setItem("gesi_set", JSON.stringify({ v: volume, fx: volFx, mus: volMusic, s: sens, vib: vibOn, mo: musicOn, b: bandana, h: hat, n: nick, sh: shoes })); } catch (e) {}
+  try { localStorage.setItem("gesi_set", JSON.stringify({ v: volume, fx: volFx, mus: volMusic, s: sens, vib: vibOn, mo: musicOn, b: bandana, h: hat, n: nick, sh: shoes, bd: bodyColor })); } catch (e) {}
 }
 function loadSettings() {
   try {
@@ -121,6 +130,7 @@ function loadSettings() {
     if (typeof s.h === "string" && HATS.indexOf(s.h) >= 0) hat = s.h;
     if (typeof s.n === "string") nick = s.n.slice(0, 12);
     if (typeof s.sh === "string" && SHOES.hasOwnProperty(s.sh)) shoes = s.sh;
+    if (typeof s.bd === "string" && BODIES[s.bd]) bodyColor = s.bd;
   } catch (e) {}
 }
 
@@ -327,20 +337,20 @@ function drawMascot(t) {
     R(bx, by + 101, 28, 3, msh.sole);
     R(bx + 54, by + 101, 28, 3, msh.sole);
   }
-  R(bx + 88, by + 30, 26, 12, "#dfe6ee");           // ogon (z prawej)
-  R(bx + 82, by + 20, 20, 12, "#ffffff");
-  R(bx, by + 26, 92, 60, "#ffffff");                // tułów
-  R(bx, by + 66, 92, 20, "#dfe6ee");                // cień brzucha
-  if (flap) { R(bx + 22, by - 2, 60, 26, "#c8d2dd"); }
-  else { R(bx + 22, by + 34, 56, 24, "#c8d2dd"); R(bx + 22, by + 54, 56, 6, "#aeb9c6"); }
-  R(bx + 8, by - 34, 30, 62, "#ffffff");            // szyja (z lewej)
-  R(bx + 30, by - 34, 8, 62, "#dfe6ee");
+  R(bx + 88, by + 30, 26, 12, bodyPal().belly);   // ogon (z prawej)
+  R(bx + 82, by + 20, 20, 12, bodyPal().base);
+  R(bx, by + 26, 92, 60, bodyPal().base);                // tułów
+  R(bx, by + 66, 92, 20, bodyPal().belly);               // cień brzucha
+  if (flap) { R(bx + 22, by - 2, 60, 26, bodyPal().wing); }
+  else { R(bx + 22, by + 34, 56, 24, bodyPal().wing); R(bx + 22, by + 54, 56, 6, bodyPal().wing2); }
+  R(bx + 8, by - 34, 30, 62, bodyPal().base);            // szyja (z lewej)
+  R(bx + 30, by - 34, 8, 62, bodyPal().belly);
   if (BANDANAS[bandana]) { R(bx + 5, by - 8, 36, 11, BANDANAS[bandana]); R(bx + 30, by + 2, 8, 10, BANDANAS[bandana]); }
-  R(bx - 8, by - 62, 46, 32, "#ffffff");            // głowa
+  R(bx - 8, by - 62, 46, 32, bodyPal().base);            // głowa
   drawHat(mctx, bx + 15, by - 62, 3, hat);
   const blink = (t % 4) < 0.15;
-  if (blink) R(bx + 8, by - 52 + ey, 12, 3, "#000");
-  else { R(bx + 8, by - 56 + ey, 12, 12, "#000"); R(bx + 11 + ex, by - 53 + ey, 4, 4, "#fff"); }
+  if (blink) R(bx + 8, by - 52 + ey, 12, 3, bodyPal().eye);
+  else { R(bx + 8, by - 56 + ey, 12, 12, bodyPal().eye); R(bx + 11 + ex, by - 53 + ey, 4, 4, bodyPal().eye === "#ffffff" ? "#000000" : "#ffffff"); }
   R(bx - 30, by - 54, 22, 9, "#ff8800");            // dziób górny w lewo
   if (kwa) {
     R(bx - 30, by - 41, 22, 9, "#e07b00");          // dziób dolny otwarty
@@ -769,12 +779,13 @@ function drawPlayer(p) {
     ctx.fillRect(px + 12, py + 24, 8, 2);
   }
   // tułów + brzuch
-  ctx.fillStyle = blink ? "#ffaaaa" : (p === P2() ? "#e8f4ff" : "#ffffff");
+  const pal = bodyPal();
+  ctx.fillStyle = blink ? "#ffaaaa" : pal.base;
   ctx.fillRect(px, py + 6 + idle, 22, 14);
-  ctx.fillStyle = blink ? "#ffaaaa" : "#dfe6ee";
+  ctx.fillStyle = blink ? "#ffaaaa" : pal.belly;
   ctx.fillRect(px, py + 16 + idle, 22, 4);
   // skrzydło
-  ctx.fillStyle = "#c8d2dd";
+  ctx.fillStyle = pal.wing;
   ctx.fillRect(px + (p.dir > 0 ? 2 : 12), py + 9 + idle, 8, 6);
   // szyja + chusta
   ctx.fillRect(px + (p.dir > 0 ? 14 : 2), py + 2, 6, 8);
@@ -785,14 +796,14 @@ function drawPlayer(p) {
     ctx.fillRect(px + 11, py + 9, 3, 4);
   }
   // głowa + dziób (otwiera się przy kwa/jedzeniu)
-  ctx.fillStyle = blink ? "#ffaaaa" : (p === P2() ? "#e8f4ff" : "#ffffff");
+  ctx.fillStyle = blink ? "#ffaaaa" : pal.base;
   ctx.fillRect(px + (p.dir > 0 ? 14 : -2), py, 10, 10);
   drawHat(ctx, px + (p.dir > 0 ? 19 : 3), py, 1, hat);
   ctx.fillStyle = beakC;
   ctx.fillRect(px + (p.dir > 0 ? 22 : -6), py + 4, 6, 4);
   if (open) ctx.fillRect(px + (p.dir > 0 ? 22 : -6), py + 8, 6, 3);
   // oko
-  ctx.fillStyle = "#000";
+  ctx.fillStyle = pal.eye;
   ctx.fillRect(px + (p.dir > 0 ? 17 : 1), py + 2, 3, 3);
   // pasek HP + tag
   ctx.fillStyle = "#000";
@@ -1221,30 +1232,32 @@ document.getElementById("chkVib").addEventListener("change", (e) => {
   vibOn = e.target.checked;
   saveSettings();
 });
-// --- customizacja: bloki z podglądem ---
-function pickBlock(parent, val, drawFn, isSel, onPick) {
-  const box = document.getElementById(parent);
-  if (!box) return;
-  const b = document.createElement("button");
-  b.className = "block" + (isSel ? " sel" : "");
-  b.dataset.val = val;
-  if (drawFn) {
-    const cv = document.createElement("canvas");
-    cv.width = 44; cv.height = 38;
-    const g = cv.getContext("2d");
-    g.imageSmoothingEnabled = false;
-    drawFn(g);
-    b.appendChild(cv);
-  } else b.textContent = "✕";
-  b.addEventListener("click", () => { onPick(val); markPicked(parent, val); });
-  box.appendChild(b);
+// --- customizacja v2: zakładki + bloki z podglądem ---
+let customTab = "duck";
+function currentVal(tab) {
+  if (tab === "duck") return bodyColor;
+  if (tab === "scarf") return bandana;
+  if (tab === "hat") return hat;
+  return shoes;
 }
-function markPicked(parent, val) {
-  const box = document.getElementById(parent);
-  if (!box || typeof box.querySelectorAll !== "function") return;
-  box.querySelectorAll(".block").forEach((el) => el.classList.toggle("sel", el.dataset.val === val));
+function setVal(tab, v) {
+  if (tab === "duck" && BODIES[v]) bodyColor = v;
+  else if (tab === "scarf" && BANDANAS.hasOwnProperty(v)) bandana = v;
+  else if (tab === "hat" && HATS.indexOf(v) >= 0) hat = v;
+  else if (tab === "shoes" && SHOES.hasOwnProperty(v)) shoes = v;
+  else return;
+  saveSettings();
+  renderBlocks();
+}
+function miniDuck(g, pal) {
+  g.fillStyle = "#161b22"; g.fillRect(0, 0, 44, 38);
+  g.fillStyle = pal.base; g.fillRect(8, 16, 22, 14);
+  g.fillRect(24, 6, 10, 12);
+  g.fillStyle = "#ff8800"; g.fillRect(32, 10, 6, 4);
+  g.fillStyle = pal.eye; g.fillRect(27, 8, 3, 3);
 }
 function miniNeck(g, col) {
+  g.fillStyle = "#161b22"; g.fillRect(0, 0, 44, 38);
   g.fillStyle = "#ffffff"; g.fillRect(14, 4, 16, 22);
   if (col) {
     g.fillStyle = col; g.fillRect(12, 12, 20, 8);
@@ -1252,6 +1265,7 @@ function miniNeck(g, col) {
   }
 }
 function miniShoe(g, st) {
+  g.fillStyle = "#161b22"; g.fillRect(0, 0, 44, 38);
   g.fillStyle = "#fff"; g.fillRect(16, 2, 12, 16);
   g.fillStyle = "#ff8800"; g.fillRect(16, 18, 12, 8);
   if (st) {
@@ -1259,27 +1273,51 @@ function miniShoe(g, st) {
     g.fillStyle = st.sole; g.fillRect(14, 27, 16, 3);
   }
 }
+function renderBlocks() {
+  const box = document.getElementById("itemBlocks");
+  if (!box || typeof document.createElement !== "function") return;
+  box.innerHTML = "";
+  const items = [];
+  if (customTab === "duck") BODY_KEYS.forEach((k) => items.push([k, (g) => miniDuck(g, BODIES[k])]));
+  else if (customTab === "scarf") {
+    items.push(["none", null]);
+    Object.keys(BANDANAS).forEach((k) => { if (k !== "none") items.push([k, (g) => miniNeck(g, BANDANAS[k])]); });
+  }
+  else if (customTab === "hat") HATS.forEach((h) => items.push([h, h === "none" ? null : ((g) => drawHat(g, 22, 30, 1.6, h))]));
+  else SHOE_KEYS.forEach((k) => items.push([k, k === "none" ? null : ((g) => miniShoe(g, SHOES[k]))]));
+  const cur = currentVal(customTab);
+  items.forEach(([val, draw]) => {
+    const b = document.createElement("button");
+    b.className = "block" + (val === cur ? " sel" : "");
+    b.dataset.val = val;
+    if (draw) {
+      const cv = document.createElement("canvas");
+      cv.width = 44; cv.height = 38;
+      const g = cv.getContext("2d");
+      if (g) { g.imageSmoothingEnabled = false; draw(g); }
+      b.appendChild(cv);
+    } else b.textContent = "✕";
+    b.addEventListener("click", () => setVal(customTab, val));
+    box.appendChild(b);
+  });
+}
+function setTab(t) {
+  customTab = t;
+  try {
+    document.querySelectorAll("#itemTabs .tab").forEach((el) => el.classList.toggle("sel", el.dataset && el.dataset.tab === t));
+  } catch (e) {}
+  renderBlocks();
+}
 function buildPickers() {
   if (typeof document === "undefined" || typeof document.createElement !== "function") return;
-  const nb = document.getElementById("neckBlocks");
-  const hb = document.getElementById("hatBlocks");
-  const sb = document.getElementById("shoeBlocks");
-  if (!nb || !hb || !sb || nb.children.length) return;
-  Object.keys(BANDANAS).forEach((k) =>
-    pickBlock("neckBlocks", k, BANDANAS[k] ? ((g) => miniNeck(g, BANDANAS[k])) : ((g) => miniNeck(g, null)),
-      k === bandana, (v) => { bandana = v; saveSettings(); }));
-  HATS.forEach((h) =>
-    pickBlock("hatBlocks", h, h === "none" ? null : ((g) => { g.fillStyle = "#161b22"; g.fillRect(0, 0, 44, 38); drawHat(g, 22, 30, 1.6, h); }),
-      h === hat, (v) => { hat = v; saveSettings(); }));
-  SHOE_KEYS.forEach((k) =>
-    pickBlock("shoeBlocks", k, k === "none" ? null : ((g) => miniShoe(g, SHOES[k])),
-      k === shoes, (v) => { shoes = v; saveSettings(); }));
+  try {
+    document.querySelectorAll("#itemTabs .tab").forEach((el) => {
+      el.addEventListener("click", () => setTab(el.dataset.tab));
+    });
+  } catch (e) {}
+  renderBlocks();
 }
-function syncPickers() {
-  markPicked("neckBlocks", bandana);
-  markPicked("hatBlocks", hat);
-  markPicked("shoeBlocks", shoes);
-}
+function syncPickers() { renderBlocks(); }
 document.getElementById("nickInput").addEventListener("input", (e) => {
   nick = e.target.value.trim().slice(0, 12);
   const pn = document.getElementById("playerName");
@@ -1291,13 +1329,14 @@ document.getElementById("btnRandom").addEventListener("click", () => {
   bandana = cols[Math.floor(Math.random() * cols.length)];
   hat = HATS[Math.floor(Math.random() * HATS.length)];
   shoes = SHOE_KEYS[Math.floor(Math.random() * SHOE_KEYS.length)];
+  bodyColor = BODY_KEYS[Math.floor(Math.random() * BODY_KEYS.length)];
   syncPickers();
   syncSettingsUI();
   saveSettings();
   sndEat();
 });
 document.getElementById("btnClearLook").addEventListener("click", () => {
-  bandana = "none"; hat = "none"; shoes = "none";
+  bandana = "none"; hat = "none"; shoes = "none"; bodyColor = "white";
   syncPickers();
   syncSettingsUI();
   saveSettings();

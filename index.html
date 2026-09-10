@@ -72,12 +72,13 @@
           </div>
           <div class="screen" id="scr-custom" hidden>
             <p><b>Wygląd gęsi</b> (podgląd obok na żywo):</p>
-            <p class="cat">Szyja</p>
-            <div class="blocks" id="neckBlocks"></div>
-            <p class="cat">Głowa</p>
-            <div class="blocks" id="hatBlocks"></div>
-            <p class="cat">Nogi</p>
-            <div class="blocks" id="shoeBlocks"></div>
+            <div class="row" id="itemTabs">
+              <button data-tab="duck" class="tab sel">Kaczka</button>
+              <button data-tab="scarf" class="tab">Szalik</button>
+              <button data-tab="hat" class="tab">Kapelusz</button>
+              <button data-tab="shoes" class="tab">Buty</button>
+            </div>
+            <div class="blocks" id="itemBlocks"></div>
             <div class="row">
               <button id="btnRandom">🎲 Losuj</button>
               <button id="btnClearLook">Usuń wszystko</button>
