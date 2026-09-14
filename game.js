@@ -198,7 +198,7 @@ const BODY_NAMES = { white: "Biała", gray: "Szara", brown: "Brązowa", black: "
 const SCARF_NAMES = { none: "Brak", red: "Czerwony", blue: "Niebieski", green: "Zielony", yellow: "Żółty", purple: "Fioletowy" };
 const HAT_NAMES = { none: "Brak", cylinder: "Cylinder", beanie: "Czapka", helmet: "Kask" };
 const SHOE_NAMES = { none: "Brak", adidasy: "Adidasy", kalosze: "Kalosze" };
-const GLASS_NAMES = { none: "Brak", ciemne: "Ciemne", kujon: "Kujon" };
+const GLASS_NAMES = { none: "Brak", pilotki: "Pilotki", serca: "Serca" };
 function bodyPal() { return BODIES[bodyColor] || BODIES.white; }
 function variantName(slot) {
   if (slot === "duck") return BODY_NAMES[bodyColor] || "";
@@ -208,21 +208,24 @@ function variantName(slot) {
   return GLASS_NAMES[glasses] || "";
 }
 const HATS = ["none", "cylinder", "beanie", "helmet"];
-const GLASSES = ["none", "ciemne", "kujon"];
+const GLASSES = ["none", "pilotki", "serca"];
 let glasses = "none";
 function drawGlasses(c, cx, ey, s, style) {
-  if (style === "ciemne") {
-    c.fillStyle = "#111111";
-    c.fillRect(Math.round(cx - 7 * s), Math.round(ey - 2 * s), Math.round(14 * s), Math.round(6 * s));
-    c.fillStyle = "#888888";
-    c.fillRect(Math.round(cx - 7 * s), Math.round(ey + 3 * s), Math.round(14 * s), Math.round(1 * s));
-  } else if (style === "kujon") {
-    c.fillStyle = "#dddddd";
-    c.fillRect(Math.round(cx - 7 * s), Math.round(ey - 2 * s), Math.round(6 * s), Math.round(6 * s));
-    c.fillRect(Math.round(cx + 1 * s), Math.round(ey - 2 * s), Math.round(6 * s), Math.round(6 * s));
-    c.fillStyle = "#000000";
-    c.fillRect(Math.round(cx - 5 * s), Math.round(ey), Math.round(2 * s), Math.round(2 * s));
-    c.fillRect(Math.round(cx + 3 * s), Math.round(ey), Math.round(2 * s), Math.round(2 * s));
+  if (style === "pilotki") {
+    c.fillStyle = "#c9a227";
+    c.fillRect(Math.round(cx - 8 * s), Math.round(ey - 3 * s), Math.round(17 * s), Math.round(8 * s));
+    c.fillStyle = "#1d3b2a";
+    c.fillRect(Math.round(cx - 6 * s), Math.round(ey - 1 * s), Math.round(13 * s), Math.round(4 * s));
+  } else if (style === "serca") {
+    c.fillStyle = "#ff2e63";
+    const heart = (hx) => {
+      c.fillRect(Math.round(hx + 1 * s), Math.round(ey - 3 * s), Math.round(2 * s), Math.round(1 * s));
+      c.fillRect(Math.round(hx + 5 * s), Math.round(ey - 3 * s), Math.round(2 * s), Math.round(1 * s));
+      c.fillRect(Math.round(hx), Math.round(ey - 2 * s), Math.round(8 * s), Math.round(3 * s));
+      c.fillRect(Math.round(hx + 2 * s), Math.round(ey + 1 * s), Math.round(4 * s), Math.round(2 * s));
+      c.fillRect(Math.round(hx + 3 * s), Math.round(ey + 3 * s), Math.round(2 * s), Math.round(1 * s));
+    };
+    heart(cx - 8 * s); heart(cx + 1 * s);
   }
 }
 const SHOES = { none: null, adidasy: { main: "#e63946", sole: "#ffffff" }, kalosze: { main: "#ffbe0b", sole: "#5a3c00" } };
@@ -487,10 +490,10 @@ function bestHTML() {
   const names = Object.keys(r.best).sort((a, b) => r.best[b] - r.best[a]);
   let h = "<div class='twoCol'><div><p><b>TOP5 punkty:</b></p>";
   if (!names.length) h += "<p class='dim'>Brak - zagraj!</p>";
-  names.slice(0, 5).forEach((n, i) => { h += "<div>" + (i + 1) + ". " + n + " - <b>" + r.best[n] + " pkt</b></div>"; });
+  names.slice(0, 5).forEach((n) => { h += "<div class='recRow'>" + n + " - <b>" + r.best[n] + " pkt</b></div>"; });
   h += "</div><div><p><b>TOP5 czas:</b></p>";
   if (!r.times.length) h += "<p class='dim'>Brak - wygraj grę!</p>";
-  r.times.slice(0, 5).forEach((x, i) => { h += "<div>" + (i + 1) + ". " + x.n + " - <b>" + fmtTime(x.t) + "</b></div>"; });
+  r.times.slice(0, 5).forEach((x) => { h += "<div class='recRow'>" + x.n + " - <b>" + fmtTime(x.t) + "</b></div>"; });
   h += "</div></div>";
   return h;
 }
@@ -504,12 +507,11 @@ function statsHTML() {
   const mine = (r.log || []).filter((x) => x.n === me).sort((a, b) => b.s - a.s).slice(0, 3);
   h += "<p><b>Twój TOP 3 (" + me + "):</b></p>";
   if (!mine.length) h += "<p class='dim'>Brak - zagraj!</p>";
-  mine.forEach((x, i) => { h += "<div>" + (i + 1) + ". <b>" + x.s + " pkt</b> <span class='sdate'>" + x.d + "</span></div>"; });
+  mine.forEach((x) => { h += "<div class='recRow'><b>" + x.s + " pkt</b> <span class='sdate'>" + x.d + "</span></div>"; });
   const wins = (r.log || []).filter((x) => x.win).slice(0, 6);
   h += "<p><b>Kto gdzie kiedy wygrał:</b></p>";
   if (!wins.length) h += "<p class='dim'>Nikt jeszcze.</p>";
-  wins.forEach((x) => { h += "<div>" + x.n + " - poz." + x.lvl + " <span class='sdate'>" + x.d + "</span></div>"; });
-  h += bestHTML();
+  wins.forEach((x) => { h += "<div class='recRow'>" + x.n + " - poz." + x.lvl + " <span class='sdate'>" + x.d + "</span></div>"; });
   return h;
 }
 function loadRekordy() { // zgodność wsteczna
@@ -613,6 +615,10 @@ function drawGoose(g, X, Y, S, L, o) {
   const bc = o.beak || "#ff8800";
   R(15, 64, 22, 9, bc);
   if (o.open) R(15, 77, 22, 9, "#e07b00");
+  if (L.glasses === "none") {
+    R(52, 61, 7, 7, "#ffffff");
+    R(55, 64, 3, 3, "#000000");
+  }
   // okulary — tuż pod kapeluszem, nie na nim
   if (L.glasses === "ciemne") {
     R(46, 61, 28, 7, "#111111"); R(46, 66, 28, 2, "#888888");
@@ -1128,7 +1134,7 @@ function drawEndArt(list) {
       g.fillRect(ox + 116, oy + 80, 4, 12); g.fillRect(ox + 112, oy + 84, 12, 4);
     }
     g.globalAlpha = pl.dead ? 0.4 : 1;
-    const L = Object.assign({}, lookOf(pl), { glasses: "ciemne" });
+    const L = Object.assign({}, lookOf(pl), { glasses: "pilotki" });
     drawGoose(g, ox, oy, 0.55, L, {});
     if (pl.dead) {
       g.fillStyle = "#fff"; g.font = "bold 22px monospace"; g.textAlign = "center";
@@ -2081,9 +2087,9 @@ function fitScale() {
     const touch = document.body.classList.contains("touch");
     const vw = document.documentElement.clientWidth || 800;
     const vh = document.documentElement.clientHeight || 700;
-    let s = Math.min((vw - 24) / 800, (vh - 250) / 600);
+    let s = Math.min((vw - 24) / 800, (vh - 170) / 600);
     if (touch) s = Math.min(Math.max(s, 0.4), 1);
-    else s = Math.min(Math.max(s, 0.7), 1.5);
+    else s = Math.min(Math.max(s, 0.7), 2.0);
     const w = Math.round(800 * s), h = Math.round(600 * s);
     canvas.style.width = w + "px";
     canvas.style.height = h + "px";

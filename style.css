@@ -78,6 +78,7 @@ button.big.pressed { transform: scale(0.94); background: #f0b429; color: #000; }
 .twoCol { display: flex; gap: 24px; justify-content: center; }
 .twoCol > div { text-align: left; }
 .sdate { font-size: 11px; opacity: 0.65; }
+.recRow { white-space: nowrap; }
 .endRow { display: flex; gap: 16px; align-items: center; justify-content: center; margin: 8px 0; }
 #endart { border: 1px solid #30363d; background: #0d1117; width: 300px; height: 170px; }
 #endStats { text-align: left; font-size: 14px; line-height: 1.7; min-width: 170px; }
@@ -134,4 +135,4 @@ button {
   font-family: inherit; margin-top: 8px;
 }
 button:hover { background: #2ea043; }
-#foot { opacity: 0.5; font-size: 12px; margin-top: 12px; }
+#foot { opacity: 0.5; font-size: 11px; margin-top: 6px; }
