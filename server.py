@@ -24,9 +24,41 @@ import string
 HOST = "127.0.0.1"
 PORT = 8001
 MAX_PLAYERS = 2
+import os as _os
+REC_FILE = _os.environ.get("GAME_REC", "/opt/game/records.json")
 
 rooms = {}   # code -> {'priv': bool, 'members': {ws: {'id': int, 'name': str}}}
 ws_room = {}  # ws -> code
+
+
+def load_wrec():
+    try:
+        with open(REC_FILE, "r", encoding="utf-8") as f:
+            r = json.load(f)
+            if isinstance(r.get("best"), dict) and isinstance(r.get("times"), list):
+                return r
+    except Exception:
+        pass
+    return {"best": {}, "times": []}
+
+
+def save_wrec(r):
+    try:
+        tmp = REC_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(r, f, ensure_ascii=False)
+        import os
+        os.replace(tmp, REC_FILE)
+    except Exception:
+        pass
+
+
+def wrec_top():
+    r = load_wrec()
+    best = sorted(r["best"].items(), key=lambda x: x[1], reverse=True)[:5]
+    times = sorted(r["times"], key=lambda x: x["t"])[:5]
+    return {"best": [{"n": n, "s": s} for n, s in best],
+            "times": [{"n": x["n"], "t": x["t"]} for x in times]}
 
 
 def public_rooms():
@@ -92,6 +124,25 @@ async def handle(ws):
             if t == "list":
                 await send(ws, {"t": "rooms", "rooms": public_rooms()})
 
+            elif t == "wrec":
+                await send(ws, {"t": "wrec", **wrec_top()})
+
+            elif t == "wsubmit":
+                try:
+                    name = str(msg.get("name", "Ges"))[:12] or "Ges"
+                    s = int(msg.get("score", 0))
+                    tt = float(msg.get("time", 0))
+                    win = bool(msg.get("win"))
+                    r = load_wrec()
+                    if s > r["best"].get(name, 0):
+                        r["best"][name] = s
+                    if win and tt > 0:
+                        r["times"].append({"n": name, "t": round(tt, 1)})
+                        r["times"] = sorted(r["times"], key=lambda x: x["t"])[:10]
+                    save_wrec(r)
+                except Exception:
+                    pass
+
             elif t == "create":
                 await leave_room(ws)
                 name = str(msg.get("name", "Ges"))[:16] or "Ges"
@@ -147,13 +198,19 @@ async def handle(ws):
                 if room:
                     room["playing"] = bool(msg.get("on"))
 
-            elif t in ("state", "input"):
+            elif t in ("state", "input", "over"):
                 code = ws_room.get(ws)
                 room = rooms.get(code) if code else None
                 if room:
+                    if t == "over":
+                        for m in room["members"].values():
+                            m["ready"] = False
                     for m in room["members"]:
                         if m is not ws:
                             await send(m, msg)
+                    if t == "over":
+                        for m in room["members"]:
+                            await send(m, {"t": "readyState", "ready": ready_names(room)})
     finally:
         await leave_room(ws)
 
