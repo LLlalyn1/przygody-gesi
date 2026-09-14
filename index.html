@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Wielkie przygody gęsi — prototyp</title>
-<link rel="icon" href="favicon.svg?v=21" type="image/svg+xml">
-<link rel="stylesheet" href="style.css?v=21">
+<link rel="icon" href="favicon.svg?v=22" type="image/svg+xml">
+<link rel="stylesheet" href="style.css?v=22">
 </head>
 <body>
 <div id="wrap">
@@ -56,17 +56,17 @@
               <button id="btnRefresh" title="Odśwież">⟳ Odśwież listę</button>
             </div>
             <div id="roomList"><p class="dim">Łączenie…</p></div>
+            <p class="dim">Lista odświeża się sama co kilka sekund.</p>
             <div class="row">
               <button id="btnRoomPub">Utwórz publiczny</button>
               <button id="btnRoomPriv">Prywatny</button>
             </div>
             <div class="row">
-              <input id="roomCode" maxlength="5" placeholder="KOD">
+              <input id="roomCode" maxlength="5" placeholder="KOD POKOJU">
               <button id="btnJoin">Dołącz</button>
             </div>
             <p id="roomMsg"></p>
             <div id="roomWho"></div>
-            <button class="big" id="btnNetStart" hidden>▶ Start online</button>
             <button id="btnLeave" hidden>Opuść pokój</button>
             <button class="back" data-back>Wróć</button>
           </div>
@@ -136,6 +136,6 @@
   </div>
   <p id="foot">Zespół Kaczki • klasa 3aTI • Mykhailo Hasenko</p>
 </div>
-<script src="game.js?v=21"></script>
+<script src="game.js?v=22"></script>
 </body>
 </html>

@@ -94,7 +94,6 @@ body.touch #controls-pc { display: none; }
 body.touch #set-touch { display: block; }
 body.touch #set-pc { display: none; }
 .row { display: flex; gap: 8px; justify-content: center; margin: 8px 0; }
-#roomCode { width: 90px; text-align: center; font-size: 16px; font-family: inherit; background: #0d1117; color: #fff; border: 1px solid #30363d; padding: 8px; text-transform: uppercase; }
 #bandana { font-size: 14px; font-family: inherit; background: #0d1117; color: #fff; border: 1px solid #30363d; padding: 6px; }
 #overlayBox.wide .menuBtns { flex: 1; min-width: 0; }
 #overlayBox.wide #mascot { display: none; }
@@ -107,7 +106,9 @@ body.touch #set-pc { display: none; }
 #overlay.transparent .menuMain { align-items: flex-start; }
 #overlay.transparent .menuSide, #overlay.transparent #controls { display: none; }
 #roomMsg { min-height: 20px; color: #ffcc00; }
-#roomList { max-height: 130px; overflow-y: auto; margin: 6px 0; }
+#roomList { max-height: 180px; overflow-y: auto; margin: 6px 0; }
+#roomCode { width: 150px; text-align: center; font-size: 18px; font-family: inherit; background: #0d1117; color: #fff; border: 1px solid #30363d; padding: 10px; text-transform: uppercase; letter-spacing: 2px; }
+#btnNetStart2.armed2 { background: #f0b429; color: #000; }
 .room { display: flex; justify-content: space-between; align-items: center; background: #0d1117; border: 1px solid #30363d; padding: 6px 10px; margin: 4px 0; }
 .room button { margin: 0; padding: 6px 12px; font-size: 13px; }
 #roomWho { margin: 6px 0; font-size: 14px; }

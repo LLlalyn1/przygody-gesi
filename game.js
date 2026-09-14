@@ -102,7 +102,7 @@ function drawPaperdoll(t) {
       g.fillStyle = pal.base; g.fillRect(n.x - 12, n.y - 8, 24, 16);
     } else if (n.slot === "glasses") {
       if (glasses === "none") { g.fillStyle = "#666"; g.font = "20px monospace"; g.textAlign = "center"; g.fillText("✕", n.x, n.y + 7); }
-      else drawGlasses(g, n.x, n.y + 2, 1.4, glasses);
+      else drawGlasses(g, n.x, n.y + 6, 1.4, glasses);
     } else {
       const st = shoeFor();
       if (!st) { g.fillStyle = "#666"; g.font = "20px monospace"; g.textAlign = "center"; g.fillText("✕", n.x, n.y + 7); }
@@ -535,16 +535,34 @@ function showMsg(title, html, btn, quit) {
   showScreen("scr-msg");
 }
 
-// --- JEDNA gęś na wszystko (menu, gra, custom, finał). Patrzy w lewo; flip -> w prawo ---
+// --- JEDNA gęś na wszystko. flip = jawne odbicie współrzędnych (bez transform) ---
+function drawHatFlip(g, X, Y, S, style, flip) {
+  if (!style || style === "none") return;
+  drawHatFlipReal(g, X, Y, S, style, flip);
+}
+function drawHatFlipReal(g, X, Y, S, style, flip) {
+  const sv = g.save ? true : false;
+  if (sv) g.save();
+  // rysujemy symetrycznie wokół środka głowy (60, ~56), więc flip to przesunięcie
+  const cx = X + 60 * S;
+  if (flip) { g.translate(2 * cx, 0); g.scale(-1, 1); }
+  drawHat(g, X + 60 * S, Y + 56 * S, 3 * S, style);
+  if (sv) g.restore();
+  void cx;
+}
+function drawGlassesFlip(g, X, Y, S, style, flip) {
+  const cx = X + 59 * S;
+  if (flip) { g.save(); g.translate(2 * cx, 0); g.scale(-1, 1); }
+  drawGlasses(g, cx, Y + 66 * S, 2 * S, style);
+  if (flip) g.restore();
+}
 function drawGoose(g, X, Y, S, L, o) {
   o = o || {};
   L = L || {};
   const pal = (BODIES[L.body] || BODIES.white);
-  g.save();
-  if (o.flip) { g.translate(X + 200 * S, 0); g.scale(-1, 1); }
-  const R = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(X + x * S, Y + y * S, w * S, h * S); };
+  const MX = (x, w) => o.flip ? 200 - x - w : x;
+  const R = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(X + MX(x, w) * S, Y + y * S, w * S, h * S); };
   const sw = o.legSwing || 0;
-  R(30, 236, 140, 6, "#000");
   R(53, 202, 12, 14 + sw, "#ff8800");
   R(107, 202, 12, 14 - sw, "#e07b00");
   const sh = (L.shoes && L.shoes !== "none") ? SHOES[L.shoes] : null;
@@ -564,13 +582,11 @@ function drawGoose(g, X, Y, S, L, o) {
   const sc = (L.bandana && L.bandana !== "none") ? BANDANAS[L.bandana] : null;
   if (sc) { R(50, 110, 36, 11, sc); R(75, 120, 8, 10, sc); }
   R(37, 56, 46, 32, fl || pal.base);
-  drawHat(g, X + 60 * S, Y + 56 * S, 3 * S, L.hat);
+  drawHatFlip(g, X, Y, S, L.hat, o.flip);
   const bc = o.beak || "#ff8800";
   R(15, 64, 22, 9, bc);
   if (o.open) R(15, 77, 22, 9, "#e07b00");
-  if (!o.blink && L.glasses === "none") R(53 + (o.eyeDX || 0), 62 + (o.eyeDY || 0), 5, 5, pal.eye);
-  drawGlasses(g, X + 59 * S, Y + 62 * S, 2 * S, L.glasses);
-  g.restore();
+  drawGlassesFlip(g, X, Y, S, L.glasses, o.flip);
 }
 
 // --- maskotka: gęś pyskiem do przycisków (lewo), oczy za myszką, dziobie ---
@@ -915,8 +931,8 @@ function update(dt) {
       if (poisonSndCd <= 0) { sfx("sizzle", 200, 0.3, "sawtooth"); poisonSndCd = 1.0; }
     }
     for (let i = bugs.length - 1; i >= 0; i--) {
-      if (rectsOverlap(p, bugs[i])) {
-        const bc = center(bugs[i]);
+      const bc = center(bugs[i]);
+      if (rectsOverlap(p, bugs[i]) || dist(center(p), bc) < 30) {
         bugs.splice(i, 1);
         levelBugs++;
         runBugs++;
@@ -966,6 +982,19 @@ function update(dt) {
     const espd = e.kind === "ghost" ? 150 : (e.kind === "boss" ? 100 : spd);
     const chaseR = e.kind === "ghost" ? 300 : 240;
     const mv = (mx, my) => { if (e.kind === "ghost") moveGhost(e, mx, my); else moveWithWalls(e, mx, my); };
+    // wykrywanie utknięcia: mało ruchu mimo pogoni -> objazd
+    e.stuckT = (e.stuckT || 0) + dt;
+    if (e.stuckT > 0.4) {
+      const moved = Math.hypot(ec.x - (e.lx || ec.x), ec.y - (e.ly || ec.y));
+      if (moved < 8 && tgt.p && tgt.d < chaseR && e.stun <= 0 && e.scare <= 0 && e.kind !== "ghost") {
+        if (!e.detourT || e.detourT <= 0) {
+          e.detourSide = (e.detourSide || 1) * -1;
+          e.detourT = 1.1;
+        }
+      }
+      e.lx = ec.x; e.ly = ec.y; e.stuckT = 0;
+    }
+    e.detourT = Math.max(0, (e.detourT || 0) - dt);
     if (e.stun <= 0) {
       if (e.scare > 0 && tgt.p) {
         const pc = center(tgt.p);
@@ -973,7 +1002,8 @@ function update(dt) {
         mv(Math.cos(a) * 135 * dt, Math.sin(a) * 135 * dt);
       } else if (tgt.p && tgt.d < chaseR) {
         const pc = center(tgt.p);
-        const a = Math.atan2(pc.y - ec.y, pc.x - ec.x);
+        let a = Math.atan2(pc.y - ec.y, pc.x - ec.x);
+        if (e.detourT > 0) a += (e.detourSide || 1) * 1.1; // łukiem wokół ściany
         mv(Math.cos(a) * espd * dt, Math.sin(a) * espd * dt);
       } else {
         e.wait -= dt;
@@ -998,9 +1028,23 @@ function update(dt) {
       }
     }
   }
+  // separacja wrogów (nie stoją jeden w drugim)
+  for (let i = 0; i < enemies.length; i++) for (let j = i + 1; j < enemies.length; j++) {
+    const a = enemies[i], b = enemies[j];
+    const dx = (b.x + b.w / 2) - (a.x + a.w / 2), dy = (b.y + b.h / 2) - (a.y + a.h / 2);
+    const d = Math.hypot(dx, dy), min = (a.w + b.w) / 2;
+    if (d > 0.1 && d < min) {
+      const push = (min - d) / 2, nx = dx / d, ny = dy / d;
+      a.x = Math.max(16, Math.min(W - 16 - a.w, a.x - nx * push));
+      a.y = Math.max(16, Math.min(H - 16 - a.h, a.y - ny * push));
+      b.x = Math.max(16, Math.min(W - 16 - b.w, b.x + nx * push));
+      b.y = Math.max(16, Math.min(H - 16 - b.h, b.y + ny * push));
+    }
+  }
 
   for (const p of alivePlayers()) {
-    if (exitDoor.open && rectsOverlap(p, exitDoor)) {
+    const dc = { x: exitDoor.x + exitDoor.w / 2, y: exitDoor.y + exitDoor.h / 2 };
+    if (exitDoor.open && dist(center(p), dc) < 36) {
       score += 50 + Math.ceil(p.hp / 2);
       if (level >= MAX_LEVEL) return endGame(true);
       level++;
@@ -1049,7 +1093,14 @@ function drawEndArt(list) {
       g.fillStyle = "#fff"; g.font = "bold 22px monospace"; g.textAlign = "center";
       g.fillText("☠", ox + 55, oy + 140);
     }
-    if (pl.tag) { g.fillStyle = "#fff"; g.font = "bold 12px monospace"; g.textAlign = "center"; g.fillText(pl.tag, ox + 55, oy + 162); }
+    if (pl.tag) {
+      g.font = "bold 12px monospace"; g.textAlign = "center";
+      const tw = g.measureText(pl.tag).width + 10;
+      g.fillStyle = "rgba(0,0,0,0.65)";
+      g.fillRect(ox + 55 - tw / 2, oy + 150, tw, 16);
+      g.fillStyle = "#fff";
+      g.fillText(pl.tag, ox + 55, oy + 162);
+    }
     g.globalAlpha = 1;
   });
 }
@@ -1167,8 +1218,12 @@ function drawPlayer(p) {
   ctx.fillStyle = p.hp > 50 ? "#00ff00" : (p.hp > 25 ? "#ffcc00" : "#ff0000");
   ctx.fillRect(px - 2, py - 30, 26 * (p.hp / 100), 4);
   if (p.tag) {
-    ctx.fillStyle = "#fff"; ctx.font = "10px monospace"; ctx.textAlign = "center";
-    ctx.fillText(p.tag, px + 11, py - 33);
+    ctx.font = "bold 11px monospace"; ctx.textAlign = "center";
+    const tw = ctx.measureText(p.tag).width + 8;
+    ctx.fillStyle = "rgba(0,0,0,0.65)";
+    ctx.fillRect(px + 11 - tw / 2, py - 45, tw, 14);
+    ctx.fillStyle = "#fff";
+    ctx.fillText(p.tag, px + 11, py - 34);
   }
 }
 
@@ -1316,12 +1371,20 @@ function trapIcon(x, y) {
   ctx.fillRect(x + 7, y + 10, 18, 3);
   ctx.fillRect(x + 7, y + 17, 18, 3);
 }
-function skillSlot(x, y, icon, frac, key, extra) {
+function skillSlot(x, y, icon, frac, key, extra, secs, regen) {
   ctx.fillStyle = "#0d1117"; ctx.fillRect(x, y, 44, 44);
   icon(x + 6, y + 4);
   ctx.strokeStyle = frac > 0 ? "#484f58" : "#58a6ff"; ctx.lineWidth = 1;
   ctx.strokeRect(x + 0.5, y + 0.5, 43, 43);
   if (frac > 0) { ctx.fillStyle = "rgba(0,0,0,0.65)"; ctx.fillRect(x, y, 44, Math.round(44 * Math.min(1, frac))); }
+  if (secs != null && frac > 0) {
+    ctx.fillStyle = "#fff"; ctx.font = "bold 13px monospace"; ctx.textAlign = "center";
+    ctx.fillText(secs, x + 22, y + 27);
+  }
+  if (regen != null && regen < 1) {
+    ctx.fillStyle = "#238636";
+    ctx.fillRect(x, y + 41, Math.round(44 * regen), 3);
+  }
   ctx.fillStyle = "#fff"; ctx.font = "10px monospace"; ctx.textAlign = "center";
   ctx.fillText(key, x + 22, y + 56);
   if (extra) {
@@ -1340,8 +1403,9 @@ function drawSkills() {
     const k2 = (mode !== "solo" && p === P2() && mode !== "net-guest") ? "," : "E";
     ctx.fillStyle = p.dead ? "#555" : "#fff"; ctx.font = "bold 11px monospace"; ctx.textAlign = "left";
     ctx.fillText(tag, 12, y + 14);
-    skillSlot(46, y, kwaIcon, (p.quackCd || 0) / 2, k1);
-    skillSlot(102, y, trapIcon, left > 0 ? 0 : 1, k2, "x" + left);
+    const cd = (p.quackCd || 0);
+    skillSlot(46, y, kwaIcon, cd / 2, k1, null, cd > 0 ? cd.toFixed(1) : null, null);
+    skillSlot(102, y, trapIcon, left > 0 ? 0 : 1, k2, "x" + left, null, left >= TRAP_MAX ? 1 : trapRegen / TRAP_REGEN);
   });
 }
 
@@ -1440,8 +1504,7 @@ function startNetGame() {
   overlay.classList.add("hidden");
   overlay.classList.remove("transparent");
 }
-document.getElementById("btnNetStart").addEventListener("click", uiClick(startNetGame));
-document.getElementById("btnNetStart2").addEventListener("click", uiClick(startNetGame));
+document.getElementById("btnNetStart2").addEventListener("click", () => toggleReady());
 document.getElementById("btnLeave2").addEventListener("click", uiClick(() => { leaveRoom(); showMenu(); }));
 let customBack = "scr-main";
 function enterCustomBack() {
@@ -1459,7 +1522,7 @@ btnStart.addEventListener("click", uiClick(() => {
 }));
 document.getElementById("btnQuit").addEventListener("click", uiClick(() => { leaveRoom(); showMenu(); }));
 // --- online: lobby + synchronizacja (host symuluje, gość ogląda i steruje) ---
-const net = { ws: null, room: null, you: 0, names: [], priv: false, guest: null, lastState: 0, lastInput: 0, lastScore: 0, buf: [], q: false, e: false };
+const net = { ws: null, room: null, you: 0, names: [], readyNames: [], priv: false, guest: null, lastState: 0, lastInput: 0, lastScore: 0, buf: [], q: false, e: false };
 function wsUrl() {
   try {
     if (typeof location !== "undefined" && location.protocol.indexOf("http") === 0)
@@ -1487,9 +1550,9 @@ function ensureWs() {
     if (m.t === "rooms") renderRooms(m.rooms || []);
     else if (m.t === "joined") {
       net.room = m.code; net.you = m.you; net.names = m.players || []; net.priv = !!m.priv;
+      net.readyNames = [];
       updateRoomUI();
       enterLobby();
-      netMsg(m.you === 1 ? "Pokój " + m.code + " — czekaj na gracza." : "Dołączono do " + m.code + ".");
     }
     else if (m.t === "players") {
       net.names = m.players || [];
@@ -1499,6 +1562,15 @@ function ensureWs() {
         players[1].hp = 100;
       }
       updateLobbyPanel();
+    }
+    else if (m.t === "readyState") {
+      net.readyNames = m.ready || [];
+      updateLobbyPanel();
+      // host startuje sam, gdy oboje gotowi
+      if (state === "lobby" && net.you === 1 && net.names.length > 1 &&
+          net.names.every((n) => net.readyNames.indexOf(n) >= 0)) {
+        setTimeout(() => { if (state === "lobby") startNetGame(); }, 600);
+      }
     }
     else if (m.t === "begin") { netMsg("Gość " + (m.guest || "") + " dołączył! Kliknij Start online."); updateRoomUI(); }
     else if (m.t === "error") netMsg(m.msg || "Błąd.");
@@ -1569,7 +1641,6 @@ function joinRoom(code) {
 }
 function updateRoomUI() {
   const inRoom = !!net.room;
-  document.getElementById("btnNetStart").hidden = !(inRoom && net.you === 1 && net.names.length > 1);
   document.getElementById("btnLeave").hidden = !inRoom;
   const who = document.getElementById("roomWho");
   if (who) who.innerHTML = inRoom ? "<b>Pokój " + net.room + (net.priv ? " (prywatny)" : "") + ":</b> " + net.names.join(", ") : "";
@@ -1606,9 +1677,27 @@ function updateLobbyPanel() {
   const c = document.getElementById("lobbyCode");
   if (c) c.textContent = net.room ? net.room : "";
   const w = document.getElementById("lobbyWho");
-  if (w) w.innerHTML = net.names.length ? "W pokoju: <b>" + net.names.join(", ") + "</b>" : "";
+  if (w) {
+    w.innerHTML = net.names.length
+      ? "W pokoju:<br><b>" + net.names.map((n) => (net.readyNames.indexOf(n) >= 0 ? "✓ " : "") + n).join("<br>") + "</b>"
+      : "";
+  }
   const st = document.getElementById("btnNetStart2");
-  if (st) st.hidden = !(net.room && net.you === 1 && net.names.length > 1);
+  if (st) {
+    const inRoom = !!net.room;
+    const me = playerName();
+    const amReady = net.readyNames.indexOf(me) >= 0;
+    const both = net.names.length > 1 && net.names.every((n) => net.readyNames.indexOf(n) >= 0);
+    st.hidden = !inRoom;
+    st.textContent = both ? "Startujemy…" : (amReady ? "✓ Gotowy! (kliknij, by cofnąć)" : "GOTÓW");
+    st.classList.toggle("armed2", amReady);
+  }
+}
+function toggleReady() {
+  if (!net.ws || net.ws.readyState !== 1 || !net.room) return;
+  const me = playerName();
+  const amReady = net.readyNames.indexOf(me) >= 0;
+  try { net.ws.send(JSON.stringify({ t: "ready", on: !amReady })); } catch (e) {}
 }
 function lobbySend() {
   if (!net.ws || net.ws.readyState !== 1 || !net.room) return;
@@ -1685,7 +1774,7 @@ function leaveRoom() {
       net.ws.send(JSON.stringify({ t: "leave" }));
     }
   } catch (e) {}
-  net.room = null; net.you = 0; net.names = []; net.guest = null;
+  net.room = null; net.you = 0; net.names = []; net.readyNames = []; net.guest = null;
   updateRoomUI();
   refreshRooms();
 }
@@ -1922,6 +2011,13 @@ function syncSettingsUI() {
 loadSettings();
 buildPickers();
 syncSettingsUI();
+if (typeof window !== "undefined" && typeof WebSocket !== "undefined") {
+  setInterval(() => {
+    try {
+      if (state === "menu" && !document.getElementById("scr-multi").hidden) refreshRooms();
+    } catch (e) {}
+  }, 4000);
+}
 setupTouch();
 showMenu();
 draw();

@@ -6,6 +6,8 @@ Protokol (JSON, jeden obiekt na wiadomosc):
   -> {'t':'create','name':str,'priv':bool}          => {'t':'joined','code','you':1,'players':[..]}
   -> {'t':'join','code':str,'name':str}             => {'t':'joined',...} / {'t':'error','msg':..}
   -> {'t':'leave'}                                  => wychodzi z pokoju
+  -> {'t':'ready','on':bool}                        => {'t':'readyState','ready':[names]}
+  -> {'t':'playing','on':bool}                      => ukrywa pokoj z listy
   host-> {'t':'state', ...snapshot...}              => relay do goscia
   gosc-> {'t':'input', ...}                         => relay do hosta
   serwis-> {'t':'players','players':[..]} / {'t':'left'} / {'t':'begin','you':2}
@@ -37,6 +39,10 @@ def names(room):
     return [m["name"] for m in room["members"].values()]
 
 
+def ready_names(room):
+    return [m["name"] for m in room["members"].values() if m.get("ready")]
+
+
 def gen_code():
     alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
     for _ in range(50):
@@ -62,12 +68,15 @@ async def leave_room(ws, notify=True):
         return
     room["members"].pop(ws, None)
     room["playing"] = False
+    for m in room["members"].values():
+        m["ready"] = False
     if not room["members"]:
         rooms.pop(code, None)
         return
     if notify:
         for m in list(room["members"]):
             await send(m, {"t": "players", "players": names(room)})
+            await send(m, {"t": "readyState", "ready": ready_names(room)})
             await send(m, {"t": "left"})
 
 
@@ -87,10 +96,11 @@ async def handle(ws):
                 await leave_room(ws)
                 name = str(msg.get("name", "Ges"))[:16] or "Ges"
                 code = gen_code()
-                rooms[code] = {"priv": bool(msg.get("priv")), "members": {ws: {"id": 1, "name": name}}}
+                rooms[code] = {"priv": bool(msg.get("priv")), "members": {ws: {"id": 1, "name": name, "ready": False}}}
                 ws_room[ws] = code
                 await send(ws, {"t": "joined", "code": code, "you": 1,
                                 "priv": rooms[code]["priv"], "players": [name]})
+                await send(ws, {"t": "readyState", "ready": []})
 
             elif t == "join":
                 await leave_room(ws)
@@ -102,14 +112,31 @@ async def handle(ws):
                 elif len(room["members"]) >= MAX_PLAYERS:
                     await send(ws, {"t": "error", "msg": "Pokoj pelny"})
                 else:
-                    room["members"][ws] = {"id": 2, "name": name}
+                    base = str(msg.get("name", "Ges"))[:14] or "Ges"
+                    name = base
+                    k = 2
+                    taken = {m["name"] for m in room["members"].values()}
+                    while name in taken:
+                        name = base + " " + str(k)
+                        k += 1
+                    room["members"][ws] = {"id": 2, "name": name, "ready": False}
                     ws_room[ws] = code
                     await send(ws, {"t": "joined", "code": code, "you": 2,
                                     "priv": room["priv"], "players": names(room)})
+                    await send(ws, {"t": "readyState", "ready": ready_names(room)})
                     for m in room["members"]:
                         if m is not ws:
                             await send(m, {"t": "players", "players": names(room)})
+                            await send(m, {"t": "readyState", "ready": ready_names(room)})
                             await send(m, {"t": "begin", "guest": name})
+
+            elif t == "ready":
+                code = ws_room.get(ws)
+                room = rooms.get(code) if code else None
+                if room and ws in room["members"]:
+                    room["members"][ws]["ready"] = bool(msg.get("on"))
+                    for m in room["members"]:
+                        await send(m, {"t": "readyState", "ready": ready_names(room)})
 
             elif t == "leave":
                 await leave_room(ws)
