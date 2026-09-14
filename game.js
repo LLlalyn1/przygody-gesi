@@ -43,12 +43,11 @@ function cycleSlot(slot) {
 // --- paper-doll: gęś na środku, linie do węzłów, klik wybiera slot ---
 function dollPartAt(x, y) {
   const ax = (x - 120) / 0.95, ay = (y - 5) / 0.95;
-  const ox = 50, oy = 55;
-  if (ax >= ox - 20 && ax <= ox + 50 && ay >= oy - 5 && ay <= oy + 30) return "glasses";
-  if (ax >= ox - 52 && ax <= ox + 50 && ay >= oy - 8 && ay <= oy + 60) return "hat";
-  if (ax >= ox + 8 && ax <= ox + 52 && ay >= oy + 35 && ay <= oy + 145) return "scarf";
-  if (ax >= ox + 40 && ax <= ox + 190 && ay >= oy + 125 && ay <= oy + 215) return "duck";
-  if (ax >= ox + 20 && ax <= ox + 170 && ay >= oy + 205 && ay <= oy + 275) return "shoes";
+  if (ax >= 40 && ax <= 75 && ay >= 52 && ay <= 78) return "glasses";
+  if (ax >= 10 && ax <= 110 && ay >= 45 && ay <= 95) return "hat";
+  if (ax >= 50 && ax <= 92 && ay >= 105 && ay <= 140) return "scarf";
+  if (ax >= 40 && ax <= 145 && ay >= 140 && ay <= 210) return "duck";
+  if (ax >= 40 && ax <= 135 && ay >= 200 && ay <= 225) return "shoes";
   return null;
 }
 function drawPaperdoll(t) {
@@ -75,34 +74,10 @@ function drawPaperdoll(t) {
   const gx = 120 + offX, gy = 5 + stepBob;
   g.translate(gx, gy);
   g.scale(sc, sc);
-  R(ox + 52, oy + 205, 16, 45, "#ff8800");
-  R(ox + 112, oy + 205, 16, 45, "#e07b00");
-  const sh = shoeFor();
-  if (sh) {
-    R(ox + 44, oy + 246, 30, 14, sh.main); R(ox + 104, oy + 246, 30, 14, sh.main);
-    R(ox + 44, oy + 258, 30, 4, sh.sole); R(ox + 104, oy + 258, 30, 4, sh.sole);
-  } else {
-    R(ox + 50, oy + 246, 16, 14, "#ff8800");
-    R(ox + 110, oy + 246, 16, 14, "#e07b00");
-  }
-  R(ox + 150, oy + 140, 40, 18, pal.belly);
-  R(ox + 40, oy + 125 + bob, 150, 90, pal.base);
-  R(ox + 40, oy + 185 + bob, 150, 30, pal.belly);
-  R(ox + 70, oy + 145 + bob, 80, 34, pal.wing);
-  R(ox + 8, oy + 35 + bob, 44, 110, pal.base);
-  if (BANDANAS[bandana]) { R(ox + 4, oy + 85 + bob, 52, 16, BANDANAS[bandana]); R(ox + 40, oy + 100 + bob, 12, 16, BANDANAS[bandana]); }
-  R(ox - 18, oy - 2 + bob, 68, 50, pal.base);
-  R(ox - 52, oy + 10 + bob, 34, 12, "#ff8800");
-  const blink = (t % 4) < 0.15;
-  const eyec = pal.eye;
-  if (glasses === "none" && !blink) {
-    R(ox + 7, oy + 11 + bob, 6, 6, eyec);
-  }
-  drawGlasses(g, ox + 10, oy + 6 + bob, 2, glasses);
-  drawHat(g, ox + 16, oy - 2 + bob, 3, hat);
+  drawGoose(g, ox, oy + bob, 1, { body: bodyColor, bandana, hat, shoes, glasses }, { blink: (t % 4) < 0.15 });
   g.restore();
   const T = (ax, ay) => [gx + sc * ax, gy + sc * ay];
-  const anchors = { hat: T(ox + 16, oy + 25 + bob), glasses: T(ox + 10, oy + 12 + bob), scarf: T(ox + 30, oy + 95 + bob), duck: T(ox + 115, oy + 172 + bob), shoes: T(ox + 80, oy + 252) };
+  const anchors = { hat: T(ox + 60, oy + 64 + bob), glasses: T(ox + 55, oy + 64 + bob), scarf: T(ox + 68, oy + 115 + bob), duck: T(ox + 91, oy + 174 + bob), shoes: T(ox + 86, oy + 217) };
   DOLL_NODES.forEach((n) => {
     const a = anchors[n.slot];
     const sel = customTab === n.slot;
@@ -560,6 +535,44 @@ function showMsg(title, html, btn, quit) {
   showScreen("scr-msg");
 }
 
+// --- JEDNA gęś na wszystko (menu, gra, custom, finał). Patrzy w lewo; flip -> w prawo ---
+function drawGoose(g, X, Y, S, L, o) {
+  o = o || {};
+  L = L || {};
+  const pal = (BODIES[L.body] || BODIES.white);
+  g.save();
+  if (o.flip) { g.translate(X + 200 * S, 0); g.scale(-1, 1); }
+  const R = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(X + x * S, Y + y * S, w * S, h * S); };
+  const sw = o.legSwing || 0;
+  R(30, 236, 140, 6, "#000");
+  R(53, 202, 12, 14 + sw, "#ff8800");
+  R(107, 202, 12, 14 - sw, "#e07b00");
+  const sh = (L.shoes && L.shoes !== "none") ? SHOES[L.shoes] : null;
+  if (sh) {
+    R(51, 212, 28, 8, sh.main); R(99, 212, 28, 8, sh.main);
+    R(51, 219, 28, 3, sh.sole); R(99, 219, 28, 3, sh.sole);
+  }
+  R(133, 148, 26, 12, pal.belly);
+  R(127, 138, 20, 12, pal.base);
+  const fl = o.flash ? "#ffaaaa" : null;
+  R(45, 144, 92, 60, fl || pal.base);
+  R(45, 184, 92, 20, fl || pal.belly);
+  if (o.flap) R(67, 116, 60, 26, pal.wing);
+  else { R(67, 152, 56, 24, pal.wing); R(67, 172, 56, 6, pal.wing2); }
+  R(53, 84, 30, 62, fl || pal.base);
+  R(75, 84, 8, 62, fl || pal.belly);
+  const sc = (L.bandana && L.bandana !== "none") ? BANDANAS[L.bandana] : null;
+  if (sc) { R(50, 110, 36, 11, sc); R(75, 120, 8, 10, sc); }
+  R(37, 56, 46, 32, fl || pal.base);
+  drawHat(g, X + 60 * S, Y + 56 * S, 3 * S, L.hat);
+  const bc = o.beak || "#ff8800";
+  R(15, 64, 22, 9, bc);
+  if (o.open) R(15, 77, 22, 9, "#e07b00");
+  if (!o.blink && L.glasses === "none") R(53 + (o.eyeDX || 0), 62 + (o.eyeDY || 0), 5, 5, pal.eye);
+  drawGlasses(g, X + 59 * S, Y + 62 * S, 2 * S, L.glasses);
+  g.restore();
+}
+
 // --- maskotka: gęś pyskiem do przycisków (lewo), oczy za myszką, dziobie ---
 function drawMascot(t) {
   if (!mctx) return;
@@ -574,50 +587,15 @@ function drawMascot(t) {
   const bob = Math.sin(t * 2) * 2;
   const lean = -38 * exc; // wypad dziobem do przycisków (zostaje w kadrze)
   const tilt = 0.28 * exc;
-  const R = (x, y, w, h, c) => { mctx.fillStyle = c; mctx.fillRect(Math.round(x), Math.round(y), w, h); };
+  const L = { body: bodyColor, bandana, hat, shoes, glasses };
   mctx.save();
-  mctx.translate(130 + mascotPos.x, 150 + mascotPos.y);
+  mctx.translate(100 + lean + mascotPos.x, 150 + mascotPos.y + bob + hop);
   mctx.rotate(tilt);
-  mctx.translate(-130, -150);
-  const bx = 75 + lean, by = 118 + bob + hop;
-  const ex = Math.round(mouseLook.x * 3), ey = Math.round(mouseLook.y * 3);
-  R(30, 236, 140, 6, "#000");                       // cień
-  R(bx + 8, by + 84, 12, 14, "#ff8800");            // nogi
-  R(bx + 62, by + 84, 12, 14, "#e07b00");
-  R(bx + 2, by + 96, 24, 6, "#ff8800");             // stopy
-  R(bx + 56, by + 96, 24, 6, "#e07b00");
-  const msh = shoeFor();
-  if (msh) {
-    R(bx, by + 94, 28, 8, msh.main);
-    R(bx + 54, by + 94, 28, 8, msh.main);
-    R(bx, by + 101, 28, 3, msh.sole);
-    R(bx + 54, by + 101, 28, 3, msh.sole);
-  }
-  R(bx + 88, by + 30, 26, 12, bodyPal().belly);   // ogon (z prawej)
-  R(bx + 82, by + 20, 20, 12, bodyPal().base);
-  R(bx, by + 26, 92, 60, bodyPal().base);                // tułów
-  R(bx, by + 66, 92, 20, bodyPal().belly);               // cień brzucha
-  if (flap) { R(bx + 22, by - 2, 60, 26, bodyPal().wing); }
-  else { R(bx + 22, by + 34, 56, 24, bodyPal().wing); R(bx + 22, by + 54, 56, 6, bodyPal().wing2); }
-  R(bx + 8, by - 34, 30, 62, bodyPal().base);            // szyja (z lewej)
-  R(bx + 30, by - 34, 8, 62, bodyPal().belly);
-  if (BANDANAS[bandana]) { R(bx + 5, by - 8, 36, 11, BANDANAS[bandana]); R(bx + 30, by + 2, 8, 10, BANDANAS[bandana]); }
-  R(bx - 8, by - 62, 46, 32, bodyPal().base);            // głowa
-  drawHat(mctx, bx + 15, by - 62, 3, hat);
-  const blink = (t % 4) < 0.15;
-  if (glasses === "none") {
-    if (!blink) { R(bx + 10 + ex, by - 52 + ey, 5, 5, bodyPal().eye); }
-  }
-  drawGlasses(mctx, bx + 14, by - 56 + ey, 2, glasses);
-  R(bx - 30, by - 54, 22, 9, "#ff8800");            // dziób górny w lewo
-  if (kwa) {
-    R(bx - 30, by - 41, 22, 9, "#e07b00");          // dziób dolny otwarty
-    mctx.strokeStyle = "#ffff00"; mctx.lineWidth = 2;
-    mctx.beginPath(); mctx.arc(bx - 30, by - 48, 14, Math.PI - 0.9, Math.PI + 0.9); mctx.stroke();
-    mctx.beginPath(); mctx.arc(bx - 30, by - 48, 24, Math.PI - 0.9, Math.PI + 0.9); mctx.stroke();
-    mctx.fillStyle = "#ffff00"; mctx.font = "bold 20px monospace"; mctx.textAlign = "center";
-    mctx.fillText("KWA!!", 60, 34);
-  }
+  mctx.translate(-100, -150);
+  drawGoose(mctx, 0, 0, 1, L, {
+    blink: (t % 4) < 0.15, flap, open: kwa,
+    eyeDX: Math.round(mouseLook.x * 3), eyeDY: Math.round(mouseLook.y * 3)
+  });
   mctx.restore();
   if (exc > 0.4) {
     mctx.strokeStyle = "#ffff00"; mctx.lineWidth = 2;
@@ -1050,38 +1028,28 @@ function movePlayer(p, dx, dy, dt, forceRun) {
   moveWithWalls(p, dx * 170 * running * dt, dy * 170 * running * dt);
 }
 
-// финальная фишка: 1-2 крутые гуси + stata
+// finał: 1-2 te same gęsi co w menu, w ciemnych okularach
 function drawEndArt(list) {
   const cv = document.getElementById("endart");
   if (!cv || !cv.getContext) return;
   const g = cv.getContext("2d");
-  const pal = bodyPal();
   g.clearRect(0, 0, 300, 170);
   const who = (list && list.length ? list : [{ dead: false }]).slice(0, 2);
   who.forEach((pl, i) => {
-    const ox = who.length === 1 ? 105 : 30 + i * 140, oy = 30;
-    const R = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(x, y, w, h); };
-    if (!pl.dead) { // iskry
-      R(ox - 22, oy + 10, 4, 12, "#ffff00"); R(ox - 26, oy + 14, 12, 4, "#ffff00");
-      R(ox + 108, oy + 60, 4, 12, "#ffff00"); R(ox + 104, oy + 64, 12, 4, "#ffff00");
+    const ox = who.length === 1 ? 95 : 20 + i * 150, oy = 12;
+    if (!pl.dead) {
+      g.fillStyle = "#ffff00";
+      g.fillRect(ox - 14, oy + 30, 4, 12); g.fillRect(ox - 18, oy + 34, 12, 4);
+      g.fillRect(ox + 116, oy + 80, 4, 12); g.fillRect(ox + 112, oy + 84, 12, 4);
     }
     g.globalAlpha = pl.dead ? 0.4 : 1;
-    R(ox + 20, oy + 118, 12, 14, "#ff8800"); R(ox + 58, oy + 118, 12, 14, "#e07b00");
-    R(ox, oy + 60, 90, 60, pal.base);
-    R(ox, oy + 100, 90, 20, pal.belly);
-    R(ox + 22, oy + 72, 44, 20, pal.wing);
-    R(ox + 8, oy + 22, 30, 46, pal.base);
-    if (BANDANAS[bandana]) R(ox + 5, oy + 52, 36, 10, BANDANAS[bandana]);
-    R(ox - 6, oy - 2, 52, 34, pal.base);
-    R(ox - 30, oy + 8, 26, 9, "#ff8800");
-    R(ox + 2, oy + 8, 5, 5, pal.eye);
-    drawHat(g, ox + 20, oy - 2, 1.8, hat);
+    const L = Object.assign({}, lookOf(pl), { glasses: "ciemne" });
+    drawGoose(g, ox, oy, 0.55, L, {});
     if (pl.dead) {
-      R(ox + 6, oy + 6, 10, 10, pal.eye);
-      g.fillStyle = "#fff"; g.font = "bold 20px monospace"; g.textAlign = "center";
-      g.fillText("☠", ox + 45, oy + 130);
-    } else drawGlasses(g, ox + 20, oy + 8, 1.6, "ciemne"); // cool
-    if (pl.tag) { g.fillStyle = "#fff"; g.font = "bold 12px monospace"; g.textAlign = "center"; g.fillText(pl.tag, ox + 45, oy + 148); }
+      g.fillStyle = "#fff"; g.font = "bold 22px monospace"; g.textAlign = "center";
+      g.fillText("☠", ox + 55, oy + 140);
+    }
+    if (pl.tag) { g.fillStyle = "#fff"; g.font = "bold 12px monospace"; g.textAlign = "center"; g.fillText(pl.tag, ox + 55, oy + 162); }
     g.globalAlpha = 1;
   });
 }
@@ -1173,74 +1141,34 @@ function drawEnemyBody(e) {
 
 function drawPlayer(p) {
   const px = Math.round(p.x), py = Math.round(p.y);
-  const blink = (p.hurtCd || 0) > 0 && Math.floor(performance.now() / 100) % 2 === 0;
+  const hurtBlink = (p.hurtCd || 0) > 0 && Math.floor(performance.now() / 100) % 2 === 0;
   if (p.dead) {
     ctx.globalAlpha = 0.4;
     ctx.fillStyle = "#888888";
-    ctx.fillRect(px, py + 6, 22, 14);
+    ctx.fillRect(px - 8, py - 12, 38, 34);
     ctx.globalAlpha = 1;
     ctx.fillStyle = "#fff"; ctx.font = "12px monospace"; ctx.textAlign = "center";
     ctx.fillText("☠", px + 11, py);
     return;
   }
-  ctx.fillStyle = blink ? "#ffaaaa" : (p === P2() ? "#e8f4ff" : "#ffffff");
-  const beakC = p === P2() ? "#ff4444" : "#ff8800";
-  const idle = p.moving ? 0 : Math.round(Math.sin(performance.now() / 400) * 1);
-  const swing = p.moving ? Math.round(Math.sin(p.anim) * 3) : 0;
-  const open = (p.chomp > 0) || (quackFx > 0 && p === P1());
-  // wygląd gracza (w lobby każdy ma swój)
   const L = lookOf(p);
-  const pal = palOf(L);
-  const sh = SHOES[L.shoes] || null;
-  // nogi kroczą
-  ctx.fillStyle = beakC;
-  ctx.fillRect(px + 4, py + 20, 4, 3 + (p.moving ? swing : 0));
-  ctx.fillRect(px + 14, py + 20, 4, 3 - (p.moving ? swing : 0));
-  if (sh) {
-    ctx.fillStyle = sh.main;
-    ctx.fillRect(px + 2, py + 21, 8, 4);
-    ctx.fillRect(px + 12, py + 21, 8, 4);
-    ctx.fillStyle = sh.sole;
-    ctx.fillRect(px + 2, py + 24, 8, 2);
-    ctx.fillRect(px + 12, py + 24, 8, 2);
-  }
-  // tułów + brzuch (kolory z wyglądu gracza)
-  ctx.fillStyle = blink ? "#ffaaaa" : pal.base;
-  ctx.fillRect(px, py + 6 + idle, 22, 14);
-  ctx.fillStyle = blink ? "#ffaaaa" : pal.belly;
-  ctx.fillRect(px, py + 16 + idle, 22, 4);
-  // skrzydło
-  ctx.fillStyle = pal.wing;
-  ctx.fillRect(px + (p.dir > 0 ? 2 : 12), py + 9 + idle, 8, 6);
-  // szyja + chusta
-  ctx.fillRect(px + (p.dir > 0 ? 14 : 2), py + 2, 6, 8);
-  const bc = scarfOf(L);
-  if (bc) {
-    ctx.fillStyle = bc;
-    ctx.fillRect(px + (p.dir > 0 ? 13 : 3), py + 6, 8, 4);
-    ctx.fillRect(px + 11, py + 9, 3, 4);
-  }
-  // głowa + dziób (otwiera się przy kwa/jedzeniu)
-  ctx.fillStyle = blink ? "#ffaaaa" : pal.base;
-  ctx.fillRect(px + (p.dir > 0 ? 14 : -2), py, 10, 10);
-  drawHat(ctx, px + (p.dir > 0 ? 19 : 3), py, 1, L.hat);
-  ctx.fillStyle = beakC;
-  ctx.fillRect(px + (p.dir > 0 ? 22 : -6), py + 4, 6, 4);
-  if (open) ctx.fillRect(px + (p.dir > 0 ? 22 : -6), py + 8, 6, 3);
-  // oko-kropka (chowa się pod okularami) + okulary
-  if (L.glasses === "none") {
-    ctx.fillStyle = pal.eye;
-    ctx.fillRect(px + (p.dir > 0 ? 18 : 2), py + 3, 2, 2);
-  }
-  drawGlasses(ctx, px + (p.dir > 0 ? 18 : 4), py + 2, 1, L.glasses);
+  const swing = p.moving ? Math.sin(p.anim) * 3 : 0;
+  const idle = p.moving ? 0 : Math.sin(performance.now() / 400) * 1;
+  drawGoose(ctx, px - 11, py - 35 + idle, 0.22, L, {
+    flip: p.dir > 0,
+    legSwing: swing,
+    open: (p.chomp > 0) || (quackFx > 0 && p === P1()),
+    flash: hurtBlink,
+    beak: p === P2() ? "#ff4444" : "#ff8800"
+  });
   // pasek HP + tag
   ctx.fillStyle = "#000";
-  ctx.fillRect(px - 2, py - 8, 26, 5);
+  ctx.fillRect(px - 2, py - 30, 26, 4);
   ctx.fillStyle = p.hp > 50 ? "#00ff00" : (p.hp > 25 ? "#ffcc00" : "#ff0000");
-  ctx.fillRect(px - 2, py - 8, 26 * (p.hp / 100), 5);
+  ctx.fillRect(px - 2, py - 30, 26 * (p.hp / 100), 4);
   if (p.tag) {
     ctx.fillStyle = "#fff"; ctx.font = "10px monospace"; ctx.textAlign = "center";
-    ctx.fillText(p.tag, px + 11, py - 11);
+    ctx.fillText(p.tag, px + 11, py - 33);
   }
 }
 
