@@ -12,11 +12,11 @@ const doll = document.getElementById("paperdoll");
 const dctx = doll && doll.getContext ? doll.getContext("2d") : null;
 if (dctx) dctx.imageSmoothingEnabled = false;
 const DOLL_NODES = [
-  { slot: "hat", label: "Głowa", x: 105, y: 60, r: 24 },
-  { slot: "glasses", label: "Oczy", x: 66, y: 165, r: 22 },
-  { slot: "scarf", label: "Szyja", x: 460, y: 125, r: 24 },
-  { slot: "duck", label: "Ciało", x: 460, y: 205, r: 24 },
-  { slot: "shoes", label: "Nogi", x: 105, y: 275, r: 24 }
+  { slot: "hat", label: "Kapelusz", x: 105, y: 60, r: 24 },
+  { slot: "glasses", label: "Oczy", x: 88, y: 150, r: 22 },
+  { slot: "scarf", label: "Szalik", x: 460, y: 125, r: 24 },
+  { slot: "duck", label: "Kaczka", x: 460, y: 205, r: 24 },
+  { slot: "shoes", label: "Buty", x: 105, y: 275, r: 24 }
 ];
 let dollEnterT = 99, dollExit = -1, pendingScreen = null;
 function currentScreen() {
@@ -95,8 +95,10 @@ function drawPaperdoll(t) {
   R(ox - 52, oy + 10 + bob, 34, 12, "#ff8800");
   const blink = (t % 4) < 0.15;
   const eyec = pal.eye, hl = pal.eye === "#ffffff" ? "#000000" : "#ffffff";
-  if (blink) R(ox + 2, oy + 12 + bob, 16, 4, eyec);
-  else { R(ox + 2, oy + 6 + bob, 16, 16, eyec); R(ox + 6, oy + 10 + bob, 5, 5, hl); }
+  if (glasses === "none") {
+    if (blink) R(ox + 2, oy + 12 + bob, 16, 4, eyec);
+    else { R(ox + 2, oy + 6 + bob, 16, 16, eyec); R(ox + 6, oy + 10 + bob, 5, 5, hl); }
+  }
   drawGlasses(g, ox + 10, oy + 6 + bob, 2, glasses);
   drawHat(g, ox + 16, oy - 2 + bob, 3, hat);
   g.restore();
@@ -173,7 +175,10 @@ const keys = {};
 window.addEventListener("keydown", (e) => {
   keys[e.code] = true;
   if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].includes(e.code)) e.preventDefault();
-  if (e.code === "KeyP" || e.code === "Escape") { togglePause(); return; }
+  if (e.code === "KeyP" || e.code === "Escape") {
+    if (e.code === "Escape" && state === "lobby") { leaveRoom(); showMenu(); return; }
+    togglePause(); return;
+  }
   if (e.code === "KeyM") { toggleMute(); return; }
   if (e.code === "Minus" || e.code === "NumpadSubtract") { changeVolume(-0.1); return; }
   if (e.code === "Equal" || e.code === "NumpadAdd") { changeVolume(0.1); return; }
@@ -201,6 +206,8 @@ let exitDoor = { x: 360, y: 16, w: 80, h: 24, open: false };
 let level = 1, startTime = 0, elapsed = 0, score = 0, levelBugs = 0;
 let quackFx = 0, muted = false, musicOn = true;
 let levelMsg = 0, volume = 0.8, volFx = 1, volMusic = 0.8, volMsg = 0, shakeT = 0, poisonSndCd = 0;
+const TRAP_MAX = 5, TRAP_REGEN = 6;
+let trapStock = TRAP_MAX, trapRegen = 0;
 let mascotT = 0, mascotPeck = 0, sens = 1, vibOn = true;
 let parts = [];
 let bandana = "red", hat = "none", nick = "";
@@ -271,6 +278,13 @@ function bandanaFor(p) {
   }
   return BANDANAS[bandana] || null;
 }
+function lookOf(p) {
+  if (p && p.look) return p.look;
+  return { body: bodyColor, bandana, hat, shoes, glasses };
+}
+function myLook() { return { body: bodyColor, bandana, hat, shoes, glasses }; }
+function palOf(L) { return BODIES[L.body] || BODIES.white; }
+function scarfOf(L) { return (L.bandana && L.bandana !== "none" ? BANDANAS[L.bandana] : null) || null; }
 const mouseLook = { x: 0, y: 0 };
 if (typeof window !== "undefined" && window.addEventListener) {
   window.addEventListener("mousemove", (e) => {
@@ -479,12 +493,10 @@ function fmtTime(t) {
 function bestHTML() {
   const r = loadRec();
   const names = Object.keys(r.best).sort((a, b) => r.best[b] - r.best[a]);
-  let h = "<p><b>🏆 Punkty (najlepszy wynik):</b></p>";
-  if (!names.length) h += "<p class='dim'>Brak — zagraj!</p>";
-  names.slice(0, 8).forEach((n, i) => { h += "<div>" + (i + 1) + ". " + n + " — <b>" + r.best[n] + " pkt</b></div>"; });
-  h += "<p><b>⏱ Czas (najszybsze ucieczki):</b></p>";
-  if (!r.times.length) h += "<p class='dim'>Brak — wygraj grę!</p>";
-  r.times.forEach((x, i) => { h += "<div>" + (i + 1) + ". " + x.n + " — <b>" + fmtTime(x.t) + "</b></div>"; });
+  let h = "";
+  if (!names.length) return "<p class='dim'>Brak — zagraj!</p>";
+  h += "<div>🏆 <b>" + names[0] + " — " + r.best[names[0]] + " pkt</b></div>";
+  if (r.times.length) h += "<div>⏱ <b>" + r.times[0].n + " — " + fmtTime(r.times[0].t) + "</b></div>";
   return h;
 }
 function statsHTML() {
@@ -502,10 +514,10 @@ function loadRekordy() { // zgodność wsteczna
 }
 function rekordyHTML() {
   const r = loadRec();
-  const names = Object.keys(r.best).sort((a, b) => r.best[b] - r.best[a]).slice(0, 5);
+  const names = Object.keys(r.best).sort((a, b) => r.best[b] - r.best[a]).slice(0, 1);
   if (!names.length) return "<p style='opacity:.6'>Brak rekordów — bądź pierwszy!</p>";
-  let h = "<p><b>🏆 Rekordy TOP5:</b></p>";
-  names.forEach((n, i) => { h += "<div>" + (i + 1) + ". " + n + " — " + r.best[n] + " pkt</div>"; });
+  let h = "<p>🏆 <b>" + names[0] + " — " + r.best[names[0]] + " pkt</b></p>";
+  if (r.times.length) h += "<p>⏱ <b>" + r.times[0].n + " — " + fmtTime(r.times[0].t) + "</b></p>";
   return h;
 }
 
@@ -518,7 +530,7 @@ function showScreen(id) {
   doShow(id);
 }
 function doShow(id) {
-  ["scr-main", "scr-multi", "scr-custom", "scr-stats", "scr-settings", "scr-msg"].forEach((s) => {
+  ["scr-main", "scr-multi", "scr-custom", "scr-stats", "scr-settings", "scr-lobby", "scr-msg"].forEach((s) => {
     document.getElementById(s).hidden = (s !== id);
   });
   const rec = document.getElementById("records");
@@ -530,7 +542,7 @@ function doShow(id) {
 }
 function showMenu() {
   state = "menu";
-  overlay.classList.remove("hidden");
+  overlay.classList.remove("hidden", "transparent");
   document.getElementById("hud").style.display = "none";
   ovTitle.textContent = "Wielkie przygody gęsi";
   showScreen("scr-main");
@@ -591,8 +603,10 @@ function drawMascot(t) {
   R(bx - 8, by - 62, 46, 32, bodyPal().base);            // głowa
   drawHat(mctx, bx + 15, by - 62, 3, hat);
   const blink = (t % 4) < 0.15;
-  if (blink) R(bx + 8, by - 52 + ey, 12, 3, bodyPal().eye);
-  else { R(bx + 8, by - 56 + ey, 12, 12, bodyPal().eye); R(bx + 11 + ex, by - 53 + ey, 4, 4, bodyPal().eye === "#ffffff" ? "#000000" : "#ffffff"); }
+  if (glasses === "none") {
+    if (blink) R(bx + 8, by - 52 + ey, 12, 3, bodyPal().eye);
+    else { R(bx + 8, by - 56 + ey, 12, 12, bodyPal().eye); R(bx + 11 + ex, by - 53 + ey, 4, 4, bodyPal().eye === "#ffffff" ? "#000000" : "#ffffff"); }
+  }
   drawGlasses(mctx, bx + 14, by - 56 + ey, 2, glasses);
   R(bx - 30, by - 54, 22, 9, "#ff8800");            // dziób górny w lewo
   if (kwa) {
@@ -633,6 +647,7 @@ function newGame(m) {
   state = "gra";
   document.getElementById("hud").style.display = "flex";
   overlay.classList.add("hidden");
+  overlay.classList.remove("transparent");
 }
 
 function mkEnemy(kind, x, y) {
@@ -644,6 +659,7 @@ function mkEnemy(kind, x, y) {
 function setupLevel() {
   traps = [];
   parts = [];
+  trapStock = TRAP_MAX; trapRegen = 0;
   exitDoor = { x: 360, y: 16, w: 80, h: 24, open: false };
   players[0].x = 80; players[0].y = 500;
   if (P2()) { P2().x = 150; P2().y = 500; }
@@ -664,6 +680,41 @@ function clearOf(px, py, pad) {
   return true;
 }
 function genLevel(n) {
+  for (let a = 0; a < 12; a++) {
+    if (attemptGen(n) && pathExists()) return;
+  }
+  attemptGen(n); // awaryjnie: cokolwiek grywalnego
+}
+function blockedAt(px, py) {
+  for (const wl of walls) {
+    if (px > wl.x - 12 && px < wl.x + wl.w + 12 && py > wl.y - 12 && py < wl.y + wl.h + 12) return true;
+  }
+  for (const p of poisons) {
+    if (Math.hypot(px - p.x, py - p.y) < p.r + 14) return true;
+  }
+  return false;
+}
+function pathExists() {
+  const cols = 40, rows = 30, cell = 20;
+  const key = (x, y) => y * cols + x;
+  const sx = 4, sy = 25, gx = 20, gy = 2;
+  if (blockedAt(sx * cell, sy * cell)) return true; // start i tak czyszczony
+  const seen = new Set([key(sx, sy)]);
+  const q = [[sx, sy]];
+  while (q.length) {
+    const [cx, cy] = q.pop();
+    if (Math.abs(cx - gx) + Math.abs(cy - gy) < 3) return true;
+    const nb = [[cx + 1, cy], [cx - 1, cy], [cx, cy + 1], [cx, cy - 1]];
+    for (const [nx, ny] of nb) {
+      if (nx < 1 || ny < 1 || nx >= cols - 1 || ny >= rows - 1 || seen.has(key(nx, ny))) continue;
+      if (blockedAt(nx * cell, ny * cell)) continue;
+      seen.add(key(nx, ny));
+      q.push([nx, ny]);
+    }
+  }
+  return false;
+}
+function attemptGen(n) {
   walls = [
     { x: 0, y: 0, w: 800, h: 16 },
     { x: 0, y: 584, w: 800, h: 16 },
@@ -674,21 +725,36 @@ function genLevel(n) {
   let guard = 0;
   while (walls.length < 4 + segs && guard++ < 80) {
     const horiz = Math.random() < 0.6;
-    const w = horiz ? Math.round(rand(120, 260)) : 20;
-    const h = horiz ? 20 : Math.round(rand(100, 220));
+    const w = horiz ? Math.round(rand(120, 220)) : 20;
+    const h = horiz ? 20 : Math.round(rand(100, 180));
     const x = Math.round(rand(60, 720 - w)), y = Math.round(rand(80, 500 - h));
     if (!clearOf(x + w / 2, y + h / 2, 60)) continue;
+    let bad = false;
+    for (const o of walls.slice(4)) {
+      if (Math.hypot(x + w / 2 - (o.x + o.w / 2), y + h / 2 - (o.y + o.h / 2)) < 190) { bad = true; break; }
+    }
+    if (bad) continue;
     walls.push({ x, y, w, h });
   }
   poisons = [];
   guard = 0;
   while (poisons.length < 2 + n && guard++ < 80) {
-    const p = { x: Math.round(rand(80, 720)), y: Math.round(rand(100, 520)), r: Math.round(rand(32, 50)) };
+    const p = { x: Math.round(rand(80, 720)), y: Math.round(rand(100, 520)), r: Math.round(rand(32, 48)) };
     if (!clearOf(p.x, p.y, p.r + 20)) continue;
+    let bad = false;
+    for (const o of poisons) {
+      if (Math.hypot(p.x - o.x, p.y - o.y) < 100) { bad = true; break; }
+    }
+    if (bad) continue;
+    for (const wl of walls) {
+      if (p.x > wl.x - p.r && p.x < wl.x + wl.w + p.r && p.y > wl.y - p.r && p.y < wl.y + wl.h + p.r) { bad = true; break; }
+    }
+    if (bad) continue;
     poisons.push(p);
   }
   const kinds = n === 1 ? ["sanit"] : n === 2 ? ["sanit", "ghost"] : n === 3 ? ["sanit", "sanit", "ghost"] : n === 4 ? ["sanit", "ghost", "boss"] : ["sanit", "ghost", "ghost", "boss"];
   enemies = kinds.map((k, i) => mkEnemy(k, 420 + (i % 2) * 180, 110 + i * 90));
+  return true;
 }
 
 function spawnBug() {
@@ -716,7 +782,8 @@ function tryQuack(p) {
 }
 
 function tryTrap(p) {
-  if (!p || state !== "gra" || p.dead || traps.length >= 4) return;
+  if (!p || state !== "gra" || p.dead || trapStock <= 0 || traps.length >= TRAP_MAX) return;
+  trapStock--;
   traps.push({ x: p.x, y: p.y, w: 18, h: 18, life: 25 });
   sndTrap();
 }
@@ -732,6 +799,7 @@ function togglePause() {
   } else if (state === "pauza") {
     state = "gra";
     overlay.classList.add("hidden");
+    overlay.classList.remove("transparent");
     startTime = performance.now() - elapsed * 1000;
   }
 }
@@ -841,6 +909,10 @@ function update(dt) {
   levelMsg = Math.max(0, levelMsg - dt);
   volMsg = Math.max(0, volMsg - dt);
   shakeT = Math.max(0, shakeT - dt);
+  if (trapStock < TRAP_MAX) {
+    trapRegen += dt;
+    while (trapStock < TRAP_MAX && trapRegen >= TRAP_REGEN) { trapStock++; trapRegen -= TRAP_REGEN; }
+  } else trapRegen = 0;
 
   // --- gracze ---
   const solos = (mode === "solo");
@@ -1114,11 +1186,14 @@ function drawPlayer(p) {
   const idle = p.moving ? 0 : Math.round(Math.sin(performance.now() / 400) * 1);
   const swing = p.moving ? Math.round(Math.sin(p.anim) * 3) : 0;
   const open = (p.chomp > 0) || (quackFx > 0 && p === P1());
+  // wygląd gracza (w lobby każdy ma swój)
+  const L = lookOf(p);
+  const pal = palOf(L);
+  const sh = SHOES[L.shoes] || null;
   // nogi kroczą
   ctx.fillStyle = beakC;
   ctx.fillRect(px + 4, py + 20, 4, 3 + (p.moving ? swing : 0));
   ctx.fillRect(px + 14, py + 20, 4, 3 - (p.moving ? swing : 0));
-  const sh = shoeFor();
   if (sh) {
     ctx.fillStyle = sh.main;
     ctx.fillRect(px + 2, py + 21, 8, 4);
@@ -1127,8 +1202,7 @@ function drawPlayer(p) {
     ctx.fillRect(px + 2, py + 24, 8, 2);
     ctx.fillRect(px + 12, py + 24, 8, 2);
   }
-  // tułów + brzuch
-  const pal = bodyPal();
+  // tułów + brzuch (kolory z wyglądu gracza)
   ctx.fillStyle = blink ? "#ffaaaa" : pal.base;
   ctx.fillRect(px, py + 6 + idle, 22, 14);
   ctx.fillStyle = blink ? "#ffaaaa" : pal.belly;
@@ -1138,7 +1212,7 @@ function drawPlayer(p) {
   ctx.fillRect(px + (p.dir > 0 ? 2 : 12), py + 9 + idle, 8, 6);
   // szyja + chusta
   ctx.fillRect(px + (p.dir > 0 ? 14 : 2), py + 2, 6, 8);
-  const bc = bandanaFor(p);
+  const bc = scarfOf(L);
   if (bc) {
     ctx.fillStyle = bc;
     ctx.fillRect(px + (p.dir > 0 ? 13 : 3), py + 6, 8, 4);
@@ -1147,14 +1221,16 @@ function drawPlayer(p) {
   // głowa + dziób (otwiera się przy kwa/jedzeniu)
   ctx.fillStyle = blink ? "#ffaaaa" : pal.base;
   ctx.fillRect(px + (p.dir > 0 ? 14 : -2), py, 10, 10);
-  drawHat(ctx, px + (p.dir > 0 ? 19 : 3), py, 1, hat);
+  drawHat(ctx, px + (p.dir > 0 ? 19 : 3), py, 1, L.hat);
   ctx.fillStyle = beakC;
   ctx.fillRect(px + (p.dir > 0 ? 22 : -6), py + 4, 6, 4);
   if (open) ctx.fillRect(px + (p.dir > 0 ? 22 : -6), py + 8, 6, 3);
-  // oko + okulary
-  ctx.fillStyle = pal.eye;
-  ctx.fillRect(px + (p.dir > 0 ? 17 : 1), py + 2, 3, 3);
-  drawGlasses(ctx, px + (p.dir > 0 ? 18 : 4), py + 2, 1, glasses);
+  // oko (chowa się pod okularami) + okulary
+  if (L.glasses === "none") {
+    ctx.fillStyle = pal.eye;
+    ctx.fillRect(px + (p.dir > 0 ? 17 : 1), py + 2, 3, 3);
+  }
+  drawGlasses(ctx, px + (p.dir > 0 ? 18 : 4), py + 2, 1, L.glasses);
   // pasek HP + tag
   ctx.fillStyle = "#000";
   ctx.fillRect(px - 2, py - 8, 26, 5);
@@ -1174,6 +1250,7 @@ function draw() {
   ctx.fillStyle = "#151a25";
   for (let y = 0; y < H; y += 40) ctx.fillRect(0, y, W, 2);
 
+  if (state === "lobby") { drawLobby(); ctx.restore(); return; }
   if (state === "menu" || !players.length) { ctx.restore(); return; }
 
   for (const p of poisons) {
@@ -1324,7 +1401,7 @@ function skillSlot(x, y, icon, frac, key, extra) {
 }
 function drawSkills() {
   const rows = mode === "solo" ? [P1()] : [P1(), P2()];
-  const left = Math.max(0, 4 - traps.length);
+  const left = trapStock;
   rows.forEach((p, i) => {
     if (!p) return;
     const y = H - 70 - i * 62;
@@ -1362,6 +1439,7 @@ function loop(now) {
     mascotPos.y = Math.max(-60, Math.min(60, mascotPos.y + mdy * 140 * dt));
   }
   if (state === "gra") update(dt);
+  else if (state === "lobby") updateLobby(dt);
   draw();
   if (state === "menu" && !overlay.classList.contains("hidden") && customTab !== undefined) {
     try {
@@ -1393,7 +1471,7 @@ function uiClick(fn) {
 document.getElementById("btnSingle").addEventListener("click", uiClick(() => newGame("solo")));
 document.getElementById("btnCoop").addEventListener("click", uiClick(() => newGame("coop")));
 document.getElementById("btnMulti").addEventListener("click", uiClick(() => { showScreen("scr-multi"); netMsg(""); refreshRooms(); }));
-document.getElementById("btnCustom").addEventListener("click", uiClick(() => showScreen("scr-custom")));
+document.getElementById("btnCustom").addEventListener("click", uiClick(() => { customBack = "scr-main"; showScreen("scr-custom"); }));
 document.getElementById("btnStats").addEventListener("click", uiClick(() => {
   document.getElementById("statsBox").innerHTML = statsHTML();
   showScreen("scr-stats");
@@ -1414,12 +1492,13 @@ document.getElementById("btnJoin").addEventListener("click", () => {
   joinRoom(code);
 });
 document.getElementById("btnLeave").addEventListener("click", () => { leaveRoom(); netMsg("Opuszczono pokój."); });
-document.getElementById("btnNetStart").addEventListener("click", uiClick(() => {
-  if (net.names.length < 2) { netMsg("Nikt nie dołączył — poczekaj na gościa."); return; }
+function startNetGame() {
+  if (net.names.length < 2) { netMsg("Nikt nie dołączył — poczekaj na gościa."); enterLobby(); return; }
   mode = "net-host";
   players = [mkPlayer("Host", 80, "ShiftLeft"), mkPlayer("Gość", 150, "ShiftRight")];
   players[0].tag = (net.names[0] || "Host").slice(0, 12);
   players[1].tag = (net.names[1] || "Gość").slice(0, 12);
+  players.forEach((p) => { p.look = myLook(); });
   level = 1; score = 0; levelBugs = 0; runBugs = 0;
   startTime = performance.now();
   elapsed = 0;
@@ -1429,9 +1508,20 @@ document.getElementById("btnNetStart").addEventListener("click", uiClick(() => {
   state = "gra";
   document.getElementById("hud").style.display = "flex";
   overlay.classList.add("hidden");
-}));
+  overlay.classList.remove("transparent");
+}
+document.getElementById("btnNetStart").addEventListener("click", uiClick(startNetGame));
+document.getElementById("btnNetStart2").addEventListener("click", uiClick(startNetGame));
+document.getElementById("btnLeave2").addEventListener("click", uiClick(() => { leaveRoom(); showMenu(); }));
+let customBack = "scr-main";
+function enterCustomBack() {
+  showScreen(customBack);
+  if (customBack === "scr-lobby") overlay.classList.add("transparent");
+}
+document.getElementById("btnLook").addEventListener("click", uiClick(() => { customBack = "scr-lobby"; overlay.classList.remove("transparent"); showScreen("scr-custom"); }));
+document.getElementById("btnCustom").addEventListener("click", uiClick(() => { customBack = "scr-main"; showScreen("scr-custom"); }));
 document.getElementById("btnSettings").addEventListener("click", uiClick(() => showScreen("scr-settings")));
-document.querySelectorAll("[data-back]").forEach((b) => b.addEventListener("click", uiClick(() => showScreen("scr-main"))));
+document.querySelectorAll("[data-back]").forEach((b) => b.addEventListener("click", uiClick(() => { enterCustomBack(); })));
 btnStart.addEventListener("click", uiClick(() => {
   if (state === "pauza") { togglePause(); return; }
   if (mode === "net-host" || mode === "net-guest") { leaveRoom(); showMenu(); return; }
@@ -1468,13 +1558,26 @@ function ensureWs() {
     else if (m.t === "joined") {
       net.room = m.code; net.you = m.you; net.names = m.players || []; net.priv = !!m.priv;
       updateRoomUI();
-      netMsg(m.you === 1 ? "Pokój " + m.code + " — czekaj na gracza." : "Dołączono do " + m.code + " — czekaj na start hosta.");
+      enterLobby();
+      netMsg(m.you === 1 ? "Pokój " + m.code + " — czekaj na gracza." : "Dołączono do " + m.code + ".");
     }
-    else if (m.t === "players") { net.names = m.players || []; updateRoomUI(); }
+    else if (m.t === "players") {
+      net.names = m.players || [];
+      updateRoomUI();
+      if (state === "lobby" && net.names.length > 1 && !players[1]) {
+        players[1] = mkPlayer("Gość", 500, "");
+        players[1].hp = 100;
+      }
+      updateLobbyPanel();
+    }
     else if (m.t === "begin") { netMsg("Gość " + (m.guest || "") + " dołączył! Kliknij Start online."); updateRoomUI(); }
     else if (m.t === "error") netMsg(m.msg || "Błąd.");
     else if (m.t === "left") {
-      if (mode === "net-guest") { net.room = null; showMenu(); netMsg("Host opuścił pokój."); }
+      if (state === "lobby") {
+        if (players.length > 1) players.length = 1;
+        updateLobbyPanel();
+      }
+      else if (mode === "net-guest") { net.room = null; showMenu(); netMsg("Host opuścił pokój."); }
       else if (mode === "net-host") { net.guest = null; if (players.length > 1) players.length = 1; popup(400, 300, "Gość wyszedł", "#ffcc00"); }
       else { net.names = net.names.slice(0, 1); updateRoomUI(); }
     }
@@ -1489,8 +1592,9 @@ function ensureWs() {
     }
     else if (m.t === "state") {
       // pierwsza klatka wciąga gościa do gry (tryb ustawia applyState)
-      if (mode === "net-guest" || state === "menu") applyState(m);
+      if (mode === "net-guest" || state === "menu" || state === "lobby") applyState(m);
     }
+    else if (m.t === "lobbypos" && state === "lobby") lobbyRecv(m);
     else if (m.t === "input" && mode === "net-host") {
       net.guest = { dx: m.dx || 0, dy: m.dy || 0, run: !!m.run };
       if (m.q && P2()) tryQuack(P2());
@@ -1539,6 +1643,110 @@ function updateRoomUI() {
   document.getElementById("btnLeave").hidden = !inRoom;
   const who = document.getElementById("roomWho");
   if (who) who.innerHTML = inRoom ? "<b>Pokój " + net.room + (net.priv ? " (prywatny)" : "") + ":</b> " + net.names.join(", ") : "";
+  updateLobbyPanel();
+}
+
+// --- poczekalnia: bieganie przed startem (jak w Among Us) ---
+const LOBBY_WALLS = [
+  { x: 0, y: 0, w: 800, h: 16 },
+  { x: 0, y: 584, w: 800, h: 16 },
+  { x: 0, y: 0, w: 16, h: 600 },
+  { x: 784, y: 0, w: 16, h: 600 },
+  { x: 330, y: 240, w: 140, h: 20 },
+  { x: 330, y: 360, w: 140, h: 20 },
+];
+let lastLobbySend = 0;
+function myIdx() { return net.you === 2 ? 1 : 0; }
+function enterLobby() {
+  state = "lobby";
+  mode = "lobby";
+  document.getElementById("hud").style.display = "none";
+  overlay.classList.remove("hidden");
+  overlay.classList.add("transparent");
+  players = [mkPlayer(playerName(), 300, "ShiftLeft")];
+  players[0].tag = playerName();
+  players[0].look = myLook();
+  players[0].hp = 100;
+  walls = LOBBY_WALLS;
+  enemies = []; bugs = []; traps = []; parts = [];
+  showScreen("scr-lobby");
+  updateLobbyPanel();
+}
+function updateLobbyPanel() {
+  const c = document.getElementById("lobbyCode");
+  if (c) c.textContent = net.room ? net.room : "";
+  const w = document.getElementById("lobbyWho");
+  if (w) w.innerHTML = net.names.length ? "W pokoju: <b>" + net.names.join(", ") + "</b>" : "";
+  const st = document.getElementById("btnNetStart2");
+  if (st) st.hidden = !(net.room && net.you === 1 && net.names.length > 1);
+}
+function lobbySend() {
+  if (!net.ws || net.ws.readyState !== 1 || !net.room) return;
+  const now = performance.now();
+  if (now - lastLobbySend < 100) return;
+  lastLobbySend = now;
+  const me = players[myIdx()];
+  if (!me) return;
+  try {
+    net.ws.send(JSON.stringify({ t: "lobbypos", i: myIdx(), x: Math.round(me.x), y: Math.round(me.y), dir: me.dir, moving: me.moving, anim: Math.round(me.anim * 100) / 100, tag: me.tag, look: me.look }));
+  } catch (e) {}
+}
+function lobbyRecv(m) {
+  const i = m.i | 0;
+  if (i < 0 || i > 1 || i === myIdx()) return;
+  if (!players[i]) {
+    players[i] = mkPlayer("Gość", 500, "");
+    players[i].hp = 100;
+  }
+  const p = players[i];
+  p.x = m.x; p.y = m.y; p.dir = m.dir || 1;
+  p.moving = !!m.moving; p.anim = m.anim || 0;
+  if (m.tag) p.tag = String(m.tag).slice(0, 12);
+  if (m.look) p.look = m.look;
+}
+function updateLobby(dt) {
+  const me = players[myIdx()];
+  if (me && !me.dead) {
+    let dx = ((keys["KeyA"] || keys["ArrowLeft"]) ? -1 : 0) + ((keys["KeyD"] || keys["ArrowRight"]) ? 1 : 0);
+    let dy = ((keys["KeyW"] || keys["ArrowUp"]) ? -1 : 0) + ((keys["KeyS"] || keys["ArrowDown"]) ? 1 : 0);
+    if (dx === 0 && dy === 0 && (joy.dx || joy.dy)) { dx = joy.dx; dy = joy.dy; }
+    const len = Math.hypot(dx, dy);
+    if (len > 0) {
+      if (len > 1) { dx /= len; dy /= len; }
+      if (dx !== 0) me.dir = dx > 0 ? 1 : -1;
+      me.moving = true; me.anim += dt * 11;
+      const run = (keys["ShiftLeft"] || keys["ShiftRight"] || touchRun) ? 1.6 : 1.0;
+      moveWithWalls(me, dx * 190 * run * dt, dy * 190 * run * dt);
+    } else me.moving = false;
+    me.look = myLook();
+    me.tag = playerName();
+  }
+  lobbySend();
+  updateParts(dt);
+}
+function drawLobby() {
+  ctx.fillStyle = "#141a26";
+  ctx.fillRect(-10, -10, W + 20, H + 20);
+  ctx.fillStyle = "#10141d";
+  for (let y = 0; y < H; y += 40) ctx.fillRect(0, y, W, 2);
+  ctx.fillStyle = "#3b4252";
+  for (const wl of walls) ctx.fillRect(wl.x, wl.y, wl.w, wl.h);
+  // stół na środku
+  ctx.fillStyle = "#5a3c00";
+  ctx.fillRect(350, 280, 100, 40);
+  ctx.fillStyle = "#7a5200";
+  ctx.fillRect(350, 280, 100, 8);
+  for (const p of players) drawPlayer(p);
+  for (const q of parts) {
+    ctx.globalAlpha = Math.max(0, q.life / q.max);
+    ctx.fillStyle = q.col;
+    ctx.fillRect(q.x - 2, q.y - 2, 4, 4);
+    ctx.globalAlpha = 1;
+  }
+  ctx.fillStyle = "#fff"; ctx.font = "bold 26px monospace"; ctx.textAlign = "center";
+  ctx.fillText("POCZEKALNIA " + (net.room || ""), W / 2, 70);
+  ctx.font = "14px monospace"; ctx.fillStyle = "#8a93a0";
+  ctx.fillText("Biegaj: WASD / strzałki • wygląd zmienisz przyciskiem", W / 2, 96);
 }
 function leaveRoom() {
   try {
@@ -1555,6 +1763,7 @@ function applyState(m) {
   mode = "net-guest";
   level = m.level || 1; score = m.score || 0; levelBugs = m.levelBugs || 0;
   net.lastScore = score;
+  if (typeof m.stock === "number") trapStock = m.stock;
   elapsed = m.elapsed || 0;
   exitDoor = m.exitDoor || exitDoor;
   walls = m.walls || []; poisons = m.poisons || [];
@@ -1577,7 +1786,7 @@ function sendState() {
   if (now - net.lastState < 50) return;
   net.lastState = now;
   net.ws.send(JSON.stringify({
-    t: "state", level, score, levelBugs, elapsed, quackFx, shakeT, exitDoor, cd: mode === "net-host" ? netCountdown : 0,
+    t: "state", level, score, levelBugs, elapsed, quackFx, shakeT, exitDoor, cd: mode === "net-host" ? netCountdown : 0, stock: trapStock,
     walls, poisons, enemies, bugs, traps,
     players: players.map((p) => ({ x: Math.round(p.x), y: Math.round(p.y), hp: Math.ceil(p.hp), dead: p.dead, dir: p.dir, tag: p.tag || null, moving: p.moving, anim: Math.round(p.anim * 100) / 100, hurtCd: Math.round((p.hurtCd || 0) * 100) / 100, chomp: Math.round((p.chomp || 0) * 100) / 100 }))
   }));
@@ -1620,11 +1829,27 @@ document.getElementById("chkMusic").addEventListener("change", (e) => {
   applyMusicVol();
   saveSettings();
 });
-document.getElementById("btnWipe").addEventListener("click", () => {
+function armWipe(id, fn) {
+  const b = document.getElementById(id);
+  if (!b) return;
+  b.addEventListener("click", () => {
+    if (!b.classList.contains("armed")) {
+      b.classList.add("armed");
+      b.textContent = "Na pewno? Kliknij jeszcze raz";
+      setTimeout(() => { b.classList.remove("armed"); b.textContent = b.dataset.label || "Wyczyść"; }, 3000);
+      return;
+    }
+    b.classList.remove("armed");
+    b.textContent = b.dataset.label || "Wyczyść";
+    fn();
+  });
+  b.dataset.label = b.textContent;
+}
+armWipe("btnWipe", () => {
   try { localStorage.removeItem(REC_KEY); } catch (e) {}
   recordsEl.innerHTML = rekordyHTML();
 });
-document.getElementById("btnWipe2").addEventListener("click", () => {
+armWipe("btnWipe2", () => {
   try { localStorage.removeItem(REC_KEY); } catch (e) {}
   document.getElementById("statsBox").innerHTML = statsHTML();
   recordsEl.innerHTML = rekordyHTML();

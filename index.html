@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Wielkie przygody gęsi — prototyp</title>
-<link rel="icon" href="favicon.svg?v=18" type="image/svg+xml">
-<link rel="stylesheet" href="style.css?v=18">
+<link rel="icon" href="favicon.svg?v=19" type="image/svg+xml">
+<link rel="stylesheet" href="style.css?v=19">
 </head>
 <body>
 <div id="wrap">
@@ -92,13 +92,25 @@
               <label>Czułość joysticka: <input type="range" id="sensRange" min="50" max="200" value="100"></label>
               <label><input type="checkbox" id="chkVib" checked> Wibracje przy trafieniu</label>
             </div>
-            <button id="btnWipe">Wyczyść rekordy</button>
+            <button id="btnWipe" class="mini-gray">Wyczyść rekordy</button>
             <button class="back" data-back>Wróć</button>
           </div>
           <div class="screen" id="scr-stats" hidden>
             <div id="statsBox"></div>
-            <button id="btnWipe2">Wyczyść wszystko</button>
+            <button id="btnWipe2" class="mini-gray">Wyczyść wszystko</button>
             <button class="back" data-back>Wróć</button>
+          </div>
+          <div class="screen" id="scr-lobby" hidden>
+            <div id="lobbyPanel">
+              <h3>Poczekalnia <span id="lobbyCode"></span></h3>
+              <div id="lobbyWho"></div>
+              <p class="dim">Biegaj: WASD / strzałki. Wygląd zmienisz obok.</p>
+              <button class="big" id="btnNetStart2" hidden>▶ Start online</button>
+              <div class="row">
+                <button id="btnLook">🎨 Wygląd</button>
+                <button id="btnLeave2">Opuść</button>
+              </div>
+            </div>
           </div>
           <div class="screen" id="scr-msg" hidden>
             <div class="endRow" id="endRow">
@@ -124,6 +136,6 @@
   </div>
   <p id="foot">Zespół Kaczki • klasa 3aTI • Mykhailo Hasenko</p>
 </div>
-<script src="game.js?v=18"></script>
+<script src="game.js?v=19"></script>
 </body>
 </html>

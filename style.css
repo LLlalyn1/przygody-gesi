@@ -63,6 +63,9 @@ body.touch #touch {
 button.big { display: block; width: 100%; margin: 8px 0; font-size: 17px; }
 button.back { background: #30363d; margin-top: 12px; }
 button.back:hover { background: #484f58; }
+button.mini-gray { background: #30363d; font-size: 12px; padding: 6px 12px; margin-top: 10px; opacity: 0.8; }
+button.mini-gray:hover { background: #484f58; }
+button.mini-gray.armed { background: #7a1f1f; opacity: 1; }
 .screen { animation: fadein 0.25s ease; }
 @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; } }
 #mascot { background: transparent; border: none; width: 160px; height: 208px; }
@@ -96,6 +99,12 @@ body.touch #set-pc { display: none; }
 #overlayBox.wide .menuBtns { flex: 1; min-width: 0; }
 #overlayBox.wide #mascot { display: none; }
 #paperdoll { width: 100%; max-width: 540px; height: auto; border: 1px solid #30363d; background: #0d1117; cursor: pointer; display: block; margin: 0 auto; }
+#overlay.transparent { background: rgba(0,0,0,0.25); }
+#overlay.transparent #overlayBox { background: transparent; border: none; width: auto; max-width: 96%; }
+#lobbyPanel { background: #161b22; border: 2px solid #58a6ff; padding: 16px 20px; width: 300px; text-align: center; }
+#lobbyPanel h3 { margin: 0 0 8px; }
+#overlay.transparent .menuMain { align-items: flex-start; }
+#overlay.transparent .menuSide, #overlay.transparent #controls { display: none; }
 #roomMsg { min-height: 20px; color: #ffcc00; }
 #roomList { max-height: 130px; overflow-y: auto; margin: 6px 0; }
 .room { display: flex; justify-content: space-between; align-items: center; background: #0d1117; border: 1px solid #30363d; padding: 6px 10px; margin: 4px 0; }
