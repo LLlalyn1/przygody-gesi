@@ -501,18 +501,18 @@ function fmtTime(t) {
   const m = Math.floor(t / 60), s = Math.floor(t % 60);
   return m + ":" + String(s).padStart(2, "0");
 }
-function bestHTML() {
-  const r = loadRec();
-  const names = Object.keys(r.best).sort((a, b) => r.best[b] - r.best[a]);
-  let h = "<div class='twoCol'><div><p><b>TOP5 punkty:</b></p>";
-  if (!names.length) h += "<p class='dim'>Brak - zagraj!</p>";
-  names.slice(0, 5).forEach((n) => { h += "<div class='recRow'>" + n + " - <b>" + r.best[n] + " pkt</b></div>"; });
-  h += "</div><div><p><b>TOP5 czas:</b></p>";
-  if (!r.times.length) h += "<p class='dim'>Brak - wygraj grę!</p>";
-  r.times.slice(0, 5).forEach((x) => { h += "<div class='recRow'>" + x.n + " - <b>" + fmtTime(x.t) + "</b></div>"; });
-  h += "</div></div>";
+function myTopHTML() {
+  const r = loadRec(), me = dispName();
+  const bs = r.best[me] || 0;
+  let bt = null;
+  (r.times || []).forEach((x) => { if (x.n === me && (bt === null || x.t < bt)) bt = x.t; });
+  if (!bs && bt === null) return "<p style='opacity:.6'>Brak - zagraj!</p>";
+  let h = "<p><b>Mój TOP:</b></p>";
+  if (bs) h += "<div class='recRow'>" + bs + " pkt</div>";
+  if (bt !== null) h += "<div class='recRow'>" + fmtTime(bt) + "</div>";
   return h;
 }
+function rekordyHTML() { return myTopHTML(); }
 function statsHTML() {
   const r = loadRec();
   const L = r.life;
@@ -534,7 +534,6 @@ function loadRekordy() { // zgodność wsteczna
   const r = loadRec();
   return Object.keys(r.best).map((n) => ({ s: r.best[n], l: MAX_LEVEL, d: "" }));
 }
-function rekordyHTML() { return bestHTML(); }
 
 // --- ekrany menu ---
 function showScreen(id) {
@@ -562,23 +561,6 @@ function showMenu() {
   ovTitle.textContent = "Wielkie przygody gęsi";
   showScreen("scr-main");
   recordsEl.innerHTML = rekordyHTML();
-  requestWrec();
-}
-// --- rekord świata (serwer, wspólny dla wszystkich) ---
-function requestWrec() {
-  const ws = ensureWs(true);
-  if (ws && ws.readyState === 1) {
-    try { ws.send(JSON.stringify({ t: "wrec" })); } catch (e) {}
-  }
-}
-function renderWrec(m) {
-  const box = document.getElementById("worldRec");
-  if (!box) return;
-  let h = "<p><b>🌍 TOP5 świata:</b></p>";
-  const b = m.best || [];
-  if (!b.length) h += "<p class='dim'>Brak - bądź pierwszy!</p>";
-  b.slice(0, 5).forEach((x) => { h += "<div class='recRow'>" + x.n + " - <b>" + x.s + " pkt</b></div>"; });
-  box.innerHTML = h;
 }
 function showMsg(title, html, btn, quit) {
   overlay.classList.remove("hidden");
@@ -1188,11 +1170,6 @@ function drawEndArt(list) {
 function finishScreen(win, bugsN) {
   const rec = rateRun(win, score, elapsed);
   saveResult(win, score, elapsed, bugsN);
-  try {
-    const ws = ensureWs(true);
-    if (ws && ws.readyState === 1 && score > 0)
-      ws.send(JSON.stringify({ t: "wsubmit", name: dispName(), score, time: Math.round(elapsed * 10) / 10, win }));
-  } catch (e) {}
   const er = document.getElementById("endRow");
   if (er) er.style.display = "flex";
   drawEndArt(players);
@@ -1648,7 +1625,6 @@ function ensureWs(quiet) {
     let m = null;
     try { m = JSON.parse(ev.data); } catch (e) { return; }
     if (m.t === "rooms") renderRooms(m.rooms || []);
-    else if (m.t === "wrec") renderWrec(m);
     else if (m.t === "joined") {
       net.room = m.code; net.you = m.you; net.names = m.players || []; net.priv = !!m.priv;
       net.readyNames = [];
@@ -1711,7 +1687,7 @@ function ensureWs(quiet) {
     }
   };
   net.ws.onclose = () => { net.ws = null; if (state === "menu") netMsg("Rozłączono. Odśwież listę."); };
-  net.ws.onopen = () => { try { if (state === "menu") { requestWrec(); refreshRooms(); } } catch (e) {} };
+  net.ws.onopen = () => { try { if (state === "menu") { refreshRooms(); } } catch (e) {} };
   return net.ws;
 }
 function playerName() {
