@@ -12,11 +12,11 @@ const doll = document.getElementById("paperdoll");
 const dctx = doll && doll.getContext ? doll.getContext("2d") : null;
 if (dctx) dctx.imageSmoothingEnabled = false;
 const DOLL_NODES = [
-  { slot: "hat", label: "Kapelusz", x: 105, y: 60, r: 24 },
-  { slot: "glasses", label: "Oczy", x: 88, y: 150, r: 22 },
+  { slot: "hat", label: "Kapelusz", x: 105, y: 55, r: 24 },
+  { slot: "glasses", label: "Okulary", x: 60, y: 150, r: 22 },
   { slot: "scarf", label: "Szalik", x: 460, y: 125, r: 24 },
   { slot: "duck", label: "Kaczka", x: 460, y: 205, r: 24 },
-  { slot: "shoes", label: "Buty", x: 105, y: 275, r: 24 }
+  { slot: "shoes", label: "Buty", x: 105, y: 278, r: 24 }
 ];
 let dollEnterT = 99, dollExit = -1, pendingScreen = null;
 function currentScreen() {
@@ -77,7 +77,7 @@ function drawPaperdoll(t) {
   drawGoose(g, ox, oy + bob, 1, { body: bodyColor, bandana, hat, shoes, glasses }, { blink: (t % 4) < 0.15 });
   g.restore();
   const T = (ax, ay) => [gx + sc * ax, gy + sc * ay];
-  const anchors = { hat: T(ox + 60, oy + 64 + bob), glasses: T(ox + 55, oy + 64 + bob), scarf: T(ox + 68, oy + 115 + bob), duck: T(ox + 91, oy + 174 + bob), shoes: T(ox + 86, oy + 217) };
+  const anchors = { hat: T(ox + 37, oy + 64 + bob), glasses: T(ox + 15, oy + 68 + bob), scarf: T(ox + 97, oy + 115 + bob), duck: T(ox + 137, oy + 174 + bob), shoes: T(ox + 51, oy + 217) };
   DOLL_NODES.forEach((n) => {
     const a = anchors[n.slot];
     const sel = customTab === n.slot;
@@ -120,10 +120,10 @@ if (doll) doll.addEventListener("click", (e) => {
     const x = (e.clientX - r.left) * 560 / r.width;
     const y = (e.clientY - r.top) * 340 / r.height;
     for (const n of DOLL_NODES) {
-      if (Math.hypot(x - n.x, y - n.y) < n.r + 8) { cycleSlot(n.slot); return; }
+      if (Math.hypot(x - n.x, y - n.y) < n.r + 8) { setTab(n.slot); sndEat(); return; }
     }
     const part = dollPartAt(x, y);
-    if (part) cycleSlot(part);
+    if (part) setTab(part);
   } catch (err) {}
 });
 
@@ -552,6 +552,23 @@ function showMenu() {
   ovTitle.textContent = "Wielkie przygody gęsi";
   showScreen("scr-main");
   recordsEl.innerHTML = rekordyHTML();
+  requestWrec();
+}
+// --- rekord świata (serwer) ---
+function requestWrec() {
+  const ws = ensureWs(true);
+  if (ws && ws.readyState === 1) {
+    try { ws.send(JSON.stringify({ t: "wrec" })); } catch (e) {}
+  }
+}
+function renderWrec(m) {
+  const box = document.getElementById("worldRec");
+  if (!box) return;
+  let h = "<p><b>🌍 TOP5 świata:</b></p>";
+  const b = m.best || [];
+  if (!b.length) h += "<p class='dim'>Brak - bądź pierwszy!</p>";
+  b.slice(0, 5).forEach((x, i) => { h += "<div>" + (i + 1) + ". " + x.n + " - <b>" + x.s + " pkt</b></div>"; });
+  box.innerHTML = h;
 }
 function showMsg(title, html, btn, quit) {
   overlay.classList.remove("hidden");
@@ -1156,6 +1173,11 @@ function drawEndArt(list) {
 function finishScreen(win, bugsN) {
   const rec = rateRun(win, score, elapsed);
   saveResult(win, score, elapsed, bugsN);
+  try {
+    const ws = ensureWs(true);
+    if (ws && ws.readyState === 1 && score > 0)
+      ws.send(JSON.stringify({ t: "wsubmit", name: dispName(), score, time: Math.round(elapsed * 10) / 10, win }));
+  } catch (e) {}
   const er = document.getElementById("endRow");
   if (er) er.style.display = "flex";
   drawEndArt(players);
@@ -1254,7 +1276,7 @@ function drawPlayer(p) {
   const L = lookOf(p);
   const swing = p.moving ? Math.sin(p.anim) * 3 : 0;
   const idle = p.moving ? 0 : Math.sin(performance.now() / 400) * 1;
-  drawGoose(ctx, px, py + idle, 0.2, L, {
+  drawGoose(ctx, px - 10, py - 26 + idle, 0.3, L, {
     flip: p.dir > 0,
     legSwing: swing,
     open: (p.chomp > 0) || (quackFx > 0 && p === P1()),
@@ -1263,16 +1285,16 @@ function drawPlayer(p) {
   });
   // pasek HP + tag
   ctx.fillStyle = "#000";
-  ctx.fillRect(px + 7, py - 8, 26, 4);
+  ctx.fillRect(px - 2, py - 34, 26, 4);
   ctx.fillStyle = p.hp > 50 ? "#00ff00" : (p.hp > 25 ? "#ffcc00" : "#ff0000");
-  ctx.fillRect(px + 7, py - 8, 26 * (p.hp / 100), 4);
+  ctx.fillRect(px - 2, py - 34, 26 * (p.hp / 100), 4);
   if (p.tag) {
     ctx.font = "bold 11px monospace"; ctx.textAlign = "center";
     const tw = ctx.measureText(p.tag).width + 8;
     ctx.fillStyle = "rgba(0,0,0,0.65)";
-    ctx.fillRect(px + 20 - tw / 2, py - 24, tw, 14);
+    ctx.fillRect(px + 11 - tw / 2, py - 50, tw, 14);
     ctx.fillStyle = "#fff";
-    ctx.fillText(p.tag, px + 20, py - 13);
+    ctx.fillText(p.tag, px + 11, py - 39);
   }
 }
 
@@ -1554,14 +1576,6 @@ function startNetGame() {
   overlay.classList.remove("transparent");
 }
 document.getElementById("btnNetStart2").addEventListener("click", () => toggleReady());
-document.getElementById("btnSnd").addEventListener("click", () => { toggleMute(); updateLobbyPanel(); });
-document.getElementById("btnMus").addEventListener("click", () => {
-  musicOn = !musicOn;
-  applyMusicVol();
-  saveSettings();
-  const c = document.getElementById("chkMusic"); if (c) c.checked = musicOn;
-  updateLobbyPanel();
-});
 document.getElementById("btnLeave2").addEventListener("click", uiClick(() => { leaveRoom(); showMenu(); }));
 let customBack = "scr-main";
 function enterCustomBack() {
@@ -1591,13 +1605,13 @@ function netMsg(t) {
   const el = document.getElementById("roomMsg");
   if (el) el.textContent = t;
 }
-function ensureWs() {
+function ensureWs(quiet) {
   if (net.ws || typeof WebSocket === "undefined") {
-    if (!net.ws) netMsg("Online działa tylko na https://just4.pl");
+    if (!net.ws && !quiet) netMsg("Online działa tylko na https://just4.pl");
     return net.ws;
   }
   const url = wsUrl();
-  if (!url) { netMsg("Online działa tylko na https://just4.pl"); return null; }
+  if (!url) { if (!quiet) netMsg("Online działa tylko na https://just4.pl"); return null; }
   try {
     net.ws = new WebSocket(url);
   } catch (e) { netMsg("Brak połączenia z serwerem."); net.ws = null; return null; }
@@ -1605,6 +1619,7 @@ function ensureWs() {
     let m = null;
     try { m = JSON.parse(ev.data); } catch (e) { return; }
     if (m.t === "rooms") renderRooms(m.rooms || []);
+    else if (m.t === "wrec") renderWrec(m);
     else if (m.t === "joined") {
       net.room = m.code; net.you = m.you; net.names = m.players || []; net.priv = !!m.priv;
       net.readyNames = [];
@@ -1661,6 +1676,7 @@ function ensureWs() {
     }
   };
   net.ws.onclose = () => { net.ws = null; if (state === "menu") netMsg("Rozłączono. Odśwież listę."); };
+  net.ws.onopen = () => { try { if (state === "menu") { requestWrec(); refreshRooms(); } } catch (e) {} };
   return net.ws;
 }
 function playerName() {
@@ -1736,8 +1752,8 @@ function updateLobbyPanel() {
   const w = document.getElementById("lobbyWho");
   if (w) {
     w.innerHTML = net.names.length
-      ? "W pokoju:<br><b>" + net.names.map((n) => (net.readyNames.indexOf(n) >= 0 ? "✓ " : "") + n).join("<br>") + "</b>"
-      : "";
+      ? net.names.map((n) => "<div class='nick" + (net.readyNames.indexOf(n) >= 0 ? " ready" : "") + "'>" + (net.readyNames.indexOf(n) >= 0 ? "✓ " : "") + n + "</div>").join("")
+      : "<span class='dim'>nikogo…</span>";
   }
   const st = document.getElementById("btnNetStart2");
   if (st) {
@@ -1749,10 +1765,6 @@ function updateLobbyPanel() {
     st.classList.toggle("armed2", amReady);
     st.classList.toggle("waiting", !can);
   }
-  const bs = document.getElementById("btnSnd");
-  if (bs) bs.textContent = muted ? "🔇" : "🔊";
-  const bm = document.getElementById("btnMus");
-  if (bm) bm.textContent = musicOn ? "🎵" : "🚫";
 }
 function toggleReady() {
   if (!net.ws || net.ws.readyState !== 1 || !net.room) return;

@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Wielkie przygody gęsi — prototyp</title>
-<link rel="icon" href="favicon.svg?v=22" type="image/svg+xml">
-<link rel="stylesheet" href="style.css?v=22">
+<link rel="icon" href="favicon.svg?v=23" type="image/svg+xml">
+<link rel="stylesheet" href="style.css?v=23">
 </head>
 <body>
 <div id="wrap">
@@ -113,21 +113,17 @@
             <button class="back" data-back>Wróć</button>
           </div>
           <div class="screen" id="scr-lobby" hidden>
+            <h2 class="lobbyTitle">POCZEKALNIA <span id="lobbyCode"></span></h2>
             <div class="lobbyRow">
+              <div class="lobbySide dim">Biegaj: WASD / strzałki.</div>
               <div class="lobbySide">
-                <h3>Pokój <span id="lobbyCode"></span></h3>
                 <div id="lobbyWho"></div>
                 <div class="row">
-                  <button id="btnSnd" title="Dźwięk">🔊</button>
-                  <button id="btnMus" title="Muzyka">🎵</button>
+                  <button id="btnLook">🎨 Wygląd</button>
+                  <button id="btnLeave2">Opuść</button>
                 </div>
               </div>
-              <div class="lobbySide">
-                <button id="btnLook">🎨 Wygląd</button>
-                <button id="btnLeave2">Opuść</button>
-              </div>
             </div>
-            <p class="dim">Biegaj: WASD / strzałki.</p>
             <button class="big waiting" id="btnNetStart2">GOTÓW</button>
           </div>
           <div class="screen" id="scr-msg" hidden>
@@ -144,6 +140,7 @@
         <div class="menuSide">
           <canvas id="mascot" width="200" height="260"></canvas>
           <div id="records"></div>
+          <div id="worldRec"></div>
         </div>
       </div>
       <p id="controls"><span id="controls-pc">Sterowanie: <b>WASD / strzałki</b> — ruch, <b>Shift</b> — bieg,
@@ -154,6 +151,6 @@
   </div>
   <p id="foot">Zespół Kaczki • klasa 3aTI • Mykhailo Hasenko</p>
 </div>
-<script src="game.js?v=22"></script>
+<script src="game.js?v=23"></script>
 </body>
 </html>
