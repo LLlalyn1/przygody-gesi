@@ -94,10 +94,9 @@ function drawPaperdoll(t) {
   R(ox - 18, oy - 2 + bob, 68, 50, pal.base);
   R(ox - 52, oy + 10 + bob, 34, 12, "#ff8800");
   const blink = (t % 4) < 0.15;
-  const eyec = pal.eye, hl = pal.eye === "#ffffff" ? "#000000" : "#ffffff";
-  if (glasses === "none") {
-    if (blink) R(ox + 2, oy + 12 + bob, 16, 4, eyec);
-    else { R(ox + 2, oy + 6 + bob, 16, 16, eyec); R(ox + 6, oy + 10 + bob, 5, 5, hl); }
+  const eyec = pal.eye;
+  if (glasses === "none" && !blink) {
+    R(ox + 7, oy + 11 + bob, 6, 6, eyec);
   }
   drawGlasses(g, ox + 10, oy + 6 + bob, 2, glasses);
   drawHat(g, ox + 16, oy - 2 + bob, 3, hat);
@@ -493,10 +492,12 @@ function fmtTime(t) {
 function bestHTML() {
   const r = loadRec();
   const names = Object.keys(r.best).sort((a, b) => r.best[b] - r.best[a]);
-  let h = "";
-  if (!names.length) return "<p class='dim'>Brak — zagraj!</p>";
-  h += "<div>🏆 <b>" + names[0] + " — " + r.best[names[0]] + " pkt</b></div>";
-  if (r.times.length) h += "<div>⏱ <b>" + r.times[0].n + " — " + fmtTime(r.times[0].t) + "</b></div>";
+  let h = "<p><b>TOP5 punkty:</b></p>";
+  if (!names.length) h += "<p class='dim'>Brak - zagraj!</p>";
+  names.slice(0, 5).forEach((n, i) => { h += "<div>" + (i + 1) + ". " + n + " - <b>" + r.best[n] + " pkt</b></div>"; });
+  h += "<p><b>TOP5 czas:</b></p>";
+  if (!r.times.length) h += "<p class='dim'>Brak - wygraj grę!</p>";
+  r.times.slice(0, 5).forEach((x, i) => { h += "<div>" + (i + 1) + ". " + x.n + " - <b>" + fmtTime(x.t) + "</b></div>"; });
   return h;
 }
 function statsHTML() {
@@ -514,10 +515,11 @@ function loadRekordy() { // zgodność wsteczna
 }
 function rekordyHTML() {
   const r = loadRec();
-  const names = Object.keys(r.best).sort((a, b) => r.best[b] - r.best[a]).slice(0, 1);
-  if (!names.length) return "<p style='opacity:.6'>Brak rekordów — bądź pierwszy!</p>";
-  let h = "<p>🏆 <b>" + names[0] + " — " + r.best[names[0]] + " pkt</b></p>";
-  if (r.times.length) h += "<p>⏱ <b>" + r.times[0].n + " — " + fmtTime(r.times[0].t) + "</b></p>";
+  const names = Object.keys(r.best).sort((a, b) => r.best[b] - r.best[a]).slice(0, 5);
+  if (!names.length) return "<p style='opacity:.6'>Brak rekordów - bądź pierwszy!</p>";
+  let h = "<p><b>🏆 Rekordy TOP5:</b></p>";
+  names.forEach((n, i) => { h += "<div>" + (i + 1) + ". " + n + " - " + r.best[n] + " pkt</div>"; });
+  if (r.times.length) h += "<p>⏱ <b>" + r.times[0].n + " - " + fmtTime(r.times[0].t) + "</b></p>";
   return h;
 }
 
@@ -538,7 +540,7 @@ function doShow(id) {
   const ob = document.getElementById("overlayBox");
   if (ob) ob.classList.toggle("wide", id === "scr-custom");
   if (id === "scr-custom") dollEnterT = 0;
-  if (mascot && mascot.style) mascot.style.display = (id === "scr-custom") ? "none" : "";
+  if (mascot && mascot.style) mascot.style.display = (id === "scr-main" || id === "scr-multi" || id === "scr-settings") ? "" : "none";
 }
 function showMenu() {
   state = "menu";
@@ -604,8 +606,7 @@ function drawMascot(t) {
   drawHat(mctx, bx + 15, by - 62, 3, hat);
   const blink = (t % 4) < 0.15;
   if (glasses === "none") {
-    if (blink) R(bx + 8, by - 52 + ey, 12, 3, bodyPal().eye);
-    else { R(bx + 8, by - 56 + ey, 12, 12, bodyPal().eye); R(bx + 11 + ex, by - 53 + ey, 4, 4, bodyPal().eye === "#ffffff" ? "#000000" : "#ffffff"); }
+    if (!blink) { R(bx + 10 + ex, by - 52 + ey, 5, 5, bodyPal().eye); }
   }
   drawGlasses(mctx, bx + 14, by - 56 + ey, 2, glasses);
   R(bx - 30, by - 54, 22, 9, "#ff8800");            // dziób górny w lewo
@@ -1073,6 +1074,7 @@ function drawEndArt(list) {
     if (BANDANAS[bandana]) R(ox + 5, oy + 52, 36, 10, BANDANAS[bandana]);
     R(ox - 6, oy - 2, 52, 34, pal.base);
     R(ox - 30, oy + 8, 26, 9, "#ff8800");
+    R(ox + 2, oy + 8, 5, 5, pal.eye);
     drawHat(g, ox + 20, oy - 2, 1.8, hat);
     if (pl.dead) {
       R(ox + 6, oy + 6, 10, 10, pal.eye);
@@ -1225,10 +1227,10 @@ function drawPlayer(p) {
   ctx.fillStyle = beakC;
   ctx.fillRect(px + (p.dir > 0 ? 22 : -6), py + 4, 6, 4);
   if (open) ctx.fillRect(px + (p.dir > 0 ? 22 : -6), py + 8, 6, 3);
-  // oko (chowa się pod okularami) + okulary
+  // oko-kropka (chowa się pod okularami) + okulary
   if (L.glasses === "none") {
     ctx.fillStyle = pal.eye;
-    ctx.fillRect(px + (p.dir > 0 ? 17 : 1), py + 2, 3, 3);
+    ctx.fillRect(px + (p.dir > 0 ? 18 : 2), py + 3, 2, 2);
   }
   drawGlasses(ctx, px + (p.dir > 0 ? 18 : 4), py + 2, 1, L.glasses);
   // pasek HP + tag
