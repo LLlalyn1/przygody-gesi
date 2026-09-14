@@ -13,6 +13,7 @@ const dctx = doll && doll.getContext ? doll.getContext("2d") : null;
 if (dctx) dctx.imageSmoothingEnabled = false;
 const DOLL_NODES = [
   { slot: "hat", label: "Głowa", x: 105, y: 60, r: 24 },
+  { slot: "glasses", label: "Oczy", x: 66, y: 165, r: 22 },
   { slot: "scarf", label: "Szyja", x: 460, y: 125, r: 24 },
   { slot: "duck", label: "Ciało", x: 460, y: 205, r: 24 },
   { slot: "shoes", label: "Nogi", x: 105, y: 275, r: 24 }
@@ -34,6 +35,7 @@ function cycleSlot(slot) {
   }
   else if (slot === "hat") hat = HATS[(HATS.indexOf(hat) + 1) % HATS.length];
   else if (slot === "shoes") shoes = SHOE_KEYS[(SHOE_KEYS.indexOf(shoes) + 1) % SHOE_KEYS.length];
+  else if (slot === "glasses") glasses = GLASSES[(GLASSES.indexOf(glasses) + 1) % GLASSES.length];
   saveSettings();
   setTab(slot);
   sndEat();
@@ -42,6 +44,7 @@ function cycleSlot(slot) {
 function dollPartAt(x, y) {
   const ax = (x - 120) / 0.95, ay = (y - 5) / 0.95;
   const ox = 50, oy = 55;
+  if (ax >= ox - 20 && ax <= ox + 50 && ay >= oy - 5 && ay <= oy + 30) return "glasses";
   if (ax >= ox - 52 && ax <= ox + 50 && ay >= oy - 8 && ay <= oy + 60) return "hat";
   if (ax >= ox + 8 && ax <= ox + 52 && ay >= oy + 35 && ay <= oy + 145) return "scarf";
   if (ax >= ox + 40 && ax <= ox + 190 && ay >= oy + 125 && ay <= oy + 215) return "duck";
@@ -94,10 +97,11 @@ function drawPaperdoll(t) {
   const eyec = pal.eye, hl = pal.eye === "#ffffff" ? "#000000" : "#ffffff";
   if (blink) R(ox + 2, oy + 12 + bob, 16, 4, eyec);
   else { R(ox + 2, oy + 6 + bob, 16, 16, eyec); R(ox + 6, oy + 10 + bob, 5, 5, hl); }
+  drawGlasses(g, ox + 10, oy + 6 + bob, 2, glasses);
   drawHat(g, ox + 16, oy - 2 + bob, 3, hat);
   g.restore();
   const T = (ax, ay) => [gx + sc * ax, gy + sc * ay];
-  const anchors = { hat: T(ox + 16, oy + 25 + bob), scarf: T(ox + 30, oy + 95 + bob), duck: T(ox + 115, oy + 172 + bob), shoes: T(ox + 80, oy + 252) };
+  const anchors = { hat: T(ox + 16, oy + 25 + bob), glasses: T(ox + 10, oy + 12 + bob), scarf: T(ox + 30, oy + 95 + bob), duck: T(ox + 115, oy + 172 + bob), shoes: T(ox + 80, oy + 252) };
   DOLL_NODES.forEach((n) => {
     const a = anchors[n.slot];
     const sel = customTab === n.slot;
@@ -120,13 +124,18 @@ function drawPaperdoll(t) {
       else { g.fillStyle = BANDANAS[bandana]; g.fillRect(n.x - 13, n.y - 7, 26, 12); g.fillRect(n.x + 2, n.y + 4, 8, 10); }
     } else if (n.slot === "duck") {
       g.fillStyle = pal.base; g.fillRect(n.x - 12, n.y - 8, 24, 16);
+    } else if (n.slot === "glasses") {
+      if (glasses === "none") { g.fillStyle = "#666"; g.font = "20px monospace"; g.textAlign = "center"; g.fillText("✕", n.x, n.y + 7); }
+      else drawGlasses(g, n.x, n.y + 2, 1.4, glasses);
     } else {
       const st = shoeFor();
       if (!st) { g.fillStyle = "#666"; g.font = "20px monospace"; g.textAlign = "center"; g.fillText("✕", n.x, n.y + 7); }
       else { g.fillStyle = st.main; g.fillRect(n.x - 12, n.y - 6, 24, 12); g.fillStyle = st.sole; g.fillRect(n.x - 12, n.y + 5, 24, 3); }
     }
     g.fillStyle = sel ? "#fff" : "#888"; g.font = (sel ? "bold " : "") + "13px monospace"; g.textAlign = "center";
-    g.fillText(n.label, n.x, n.y + n.r + 16);
+    g.fillText(n.label, n.x, n.y + n.r + 14);
+    g.fillStyle = sel ? "#ffcc00" : "#666"; g.font = "11px monospace";
+    g.fillText(variantName(n.slot), n.x, n.y + n.r + 28);
   });
 }
 if (doll) doll.addEventListener("click", (e) => {
@@ -156,19 +165,15 @@ const btnStart = document.getElementById("btnStart");
 const recordsEl = document.getElementById("records");
 
 const W = 800, H = 600;
-const MAX_LEVEL = 3;
-const TARGETS = [0, 8, 10, 12];
-const ENEMY_SPEED = [0, 122, 134, 148];
+const MAX_LEVEL = 5;
+const TARGETS = [0, 8, 10, 12, 14, 16];
+const ENEMY_SPEED = [0, 122, 134, 148, 158, 168];
 
 const keys = {};
 window.addEventListener("keydown", (e) => {
   keys[e.code] = true;
   if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space"].includes(e.code)) e.preventDefault();
-  if (e.code === "KeyP" || e.code === "Escape") {
-    if (e.code === "Escape" && (state === "gra" || state === "pauza")) { leaveRoom(); showMenu(); return; }
-    if ((mode === "net-host" || mode === "net-guest") && state === "gra") { leaveRoom(); showMenu(); return; }
-    togglePause(); return;
-  }
+  if (e.code === "KeyP" || e.code === "Escape") { togglePause(); return; }
   if (e.code === "KeyM") { toggleMute(); return; }
   if (e.code === "Minus" || e.code === "NumpadSubtract") { changeVolume(-0.1); return; }
   if (e.code === "Equal" || e.code === "NumpadAdd") { changeVolume(0.1); return; }
@@ -208,8 +213,37 @@ const BODIES = {
   black: { base: "#26262b", belly: "#3d3d45", wing: "#17171b", wing2: "#0c0c0f", eye: "#ffffff" }
 };
 const BODY_KEYS = ["white", "gray", "brown", "black"];
+const BODY_NAMES = { white: "Biała", gray: "Szara", brown: "Brązowa", black: "Czarna" };
+const SCARF_NAMES = { none: "Brak", red: "Czerwony", blue: "Niebieski", green: "Zielony", yellow: "Żółty", purple: "Fioletowy" };
+const HAT_NAMES = { none: "Brak", cylinder: "Cylinder", beanie: "Czapka", helmet: "Kask" };
+const SHOE_NAMES = { none: "Brak", adidasy: "Adidasy", kalosze: "Kalosze" };
+const GLASS_NAMES = { none: "Brak", ciemne: "Ciemne", kujon: "Kujon" };
 function bodyPal() { return BODIES[bodyColor] || BODIES.white; }
+function variantName(slot) {
+  if (slot === "duck") return BODY_NAMES[bodyColor] || "";
+  if (slot === "scarf") return SCARF_NAMES[bandana] || "";
+  if (slot === "hat") return HAT_NAMES[hat] || "";
+  if (slot === "shoes") return SHOE_NAMES[shoes] || "";
+  return GLASS_NAMES[glasses] || "";
+}
 const HATS = ["none", "cylinder", "beanie", "helmet"];
+const GLASSES = ["none", "ciemne", "kujon"];
+let glasses = "none";
+function drawGlasses(c, cx, ey, s, style) {
+  if (style === "ciemne") {
+    c.fillStyle = "#111111";
+    c.fillRect(Math.round(cx - 7 * s), Math.round(ey - 2 * s), Math.round(14 * s), Math.round(6 * s));
+    c.fillStyle = "#888888";
+    c.fillRect(Math.round(cx - 7 * s), Math.round(ey + 3 * s), Math.round(14 * s), Math.round(1 * s));
+  } else if (style === "kujon") {
+    c.fillStyle = "#dddddd";
+    c.fillRect(Math.round(cx - 7 * s), Math.round(ey - 2 * s), Math.round(6 * s), Math.round(6 * s));
+    c.fillRect(Math.round(cx + 1 * s), Math.round(ey - 2 * s), Math.round(6 * s), Math.round(6 * s));
+    c.fillStyle = "#000000";
+    c.fillRect(Math.round(cx - 5 * s), Math.round(ey), Math.round(2 * s), Math.round(2 * s));
+    c.fillRect(Math.round(cx + 3 * s), Math.round(ey), Math.round(2 * s), Math.round(2 * s));
+  }
+}
 const SHOES = { none: null, adidasy: { main: "#e63946", sole: "#ffffff" }, kalosze: { main: "#ffbe0b", sole: "#5a3c00" } };
 const SHOE_KEYS = ["none", "adidasy", "kalosze"];
 let shoes = "none";
@@ -251,7 +285,7 @@ if (typeof window !== "undefined" && window.addEventListener) {
 }
 
 function saveSettings() {
-  try { localStorage.setItem("gesi_set", JSON.stringify({ v: volume, fx: volFx, mus: volMusic, s: sens, vib: vibOn, mo: musicOn, b: bandana, h: hat, n: nick, sh: shoes, bd: bodyColor })); } catch (e) {}
+  try { localStorage.setItem("gesi_set", JSON.stringify({ v: volume, fx: volFx, mus: volMusic, s: sens, vib: vibOn, mo: musicOn, b: bandana, h: hat, n: nick, sh: shoes, bd: bodyColor, gl: glasses })); } catch (e) {}
 }
 function loadSettings() {
   try {
@@ -269,6 +303,7 @@ function loadSettings() {
     if (typeof s.n === "string") nick = s.n.slice(0, 12);
     if (typeof s.sh === "string" && SHOES.hasOwnProperty(s.sh)) shoes = s.sh;
     if (typeof s.bd === "string" && BODIES[s.bd]) bodyColor = s.bd;
+    if (typeof s.gl === "string" && GLASSES.indexOf(s.gl) >= 0) glasses = s.gl;
   } catch (e) {}
 }
 
@@ -301,6 +336,7 @@ function randomLook() {
   hat = HATS[Math.floor(Math.random() * HATS.length)];
   shoes = SHOE_KEYS[Math.floor(Math.random() * SHOE_KEYS.length)];
   bodyColor = BODY_KEYS[Math.floor(Math.random() * BODY_KEYS.length)];
+  glasses = GLASSES[Math.floor(Math.random() * GLASSES.length)];
 }
 ["quack", "eat", "hurt", "win", "level", "trap", "sizzle"].forEach(loadSfx);
 function beep(freq, dur, type) {
@@ -402,27 +438,74 @@ function setupTouch() {
   bind("tPause", (down) => { if (down) togglePause(); });
 }
 
-// --- rekordy ---
-function loadRekordy() {
+// --- rekordy v2: najlepsi gracze (punkty) + najlepsze czasy + życie ---
+const REC_KEY = "gesi_rekordy_v2";
+let runBugs = 0;
+function loadRec() {
   try {
-    if (typeof localStorage === "undefined") return [];
-    return JSON.parse(localStorage.getItem("gesi_rekordy") || "[]");
-  } catch (e) { return []; }
-}
-function saveRekord(s, lvl) {
-  try {
-    if (typeof localStorage === "undefined") return;
-    const r = loadRekordy();
-    r.push({ s, l: lvl, m: mode, d: new Date().toLocaleDateString("pl-PL") });
-    r.sort((a, b) => b.s - a.s);
-    localStorage.setItem("gesi_rekordy", JSON.stringify(r.slice(0, 5)));
+    const r = JSON.parse(localStorage.getItem(REC_KEY) || "null");
+    if (r && r.best && r.times && r.life) return r;
   } catch (e) {}
+  return { best: {}, times: [], life: { games: 0, wins: 0, bugs: 0, time: 0 } };
+}
+function dispName() { return (nick || "").trim().slice(0, 12) || "Gęś"; }
+// co pobije? liczone PRZED zapisem
+function rateRun(win, s, t) {
+  const r = loadRec(), nm = dispName();
+  return {
+    points: s > 0 && s > (r.best[nm] || 0),
+    time: win && (r.times.length < 5 || t < r.times[r.times.length - 1].t)
+  };
+}
+function saveResult(win, s, t, bugs) {
+  const r = loadRec(), nm = dispName();
+  if (s > (r.best[nm] || 0)) r.best[nm] = s;
+  if (win) {
+    r.times.push({ n: nm, t: Math.round(t * 10) / 10 });
+    r.times.sort((a, b) => a.t - b.t);
+    r.times = r.times.slice(0, 5);
+  }
+  r.life.games++;
+  if (win) r.life.wins++;
+  r.life.bugs += bugs;
+  r.life.time += Math.round(t);
+  try { localStorage.setItem(REC_KEY, JSON.stringify(r)); } catch (e) {}
+  return r;
+}
+function fmtTime(t) {
+  const m = Math.floor(t / 60), s = Math.floor(t % 60);
+  return m + ":" + String(s).padStart(2, "0");
+}
+function bestHTML() {
+  const r = loadRec();
+  const names = Object.keys(r.best).sort((a, b) => r.best[b] - r.best[a]);
+  let h = "<p><b>🏆 Punkty (najlepszy wynik):</b></p>";
+  if (!names.length) h += "<p class='dim'>Brak — zagraj!</p>";
+  names.slice(0, 8).forEach((n, i) => { h += "<div>" + (i + 1) + ". " + n + " — <b>" + r.best[n] + " pkt</b></div>"; });
+  h += "<p><b>⏱ Czas (najszybsze ucieczki):</b></p>";
+  if (!r.times.length) h += "<p class='dim'>Brak — wygraj grę!</p>";
+  r.times.forEach((x, i) => { h += "<div>" + (i + 1) + ". " + x.n + " — <b>" + fmtTime(x.t) + "</b></div>"; });
+  return h;
+}
+function statsHTML() {
+  const r = loadRec();
+  const L = r.life;
+  let h = "<p><b>📊 Statystyki</b></p>";
+  h += "<div>Gry: <b>" + L.games + "</b> • Wygrane: <b>" + L.wins + "</b></div>";
+  h += "<div>Owady łącznie: <b>" + L.bugs + "</b> • Czas w grze: <b>" + fmtTime(L.time) + "</b></div>";
+  h += bestHTML();
+  return h;
+}
+function loadRekordy() { // zgodność wsteczna
+  const r = loadRec();
+  return Object.keys(r.best).map((n) => ({ s: r.best[n], l: MAX_LEVEL, d: "" }));
 }
 function rekordyHTML() {
-  const r = loadRekordy();
-  if (!r.length) return "<p style='opacity:.6'>Brak rekordów — bądź pierwszy!</p>";
+  const r = loadRec();
+  const names = Object.keys(r.best).sort((a, b) => r.best[b] - r.best[a]).slice(0, 5);
+  if (!names.length) return "<p style='opacity:.6'>Brak rekordów — bądź pierwszy!</p>";
   let h = "<p><b>🏆 Rekordy TOP5:</b></p>";
-  r.forEach((x, i) => { h += "<div>" + (i + 1) + ". " + x.s + " pkt (poz." + x.l + (x.m && x.m !== "solo" ? ", 2P" : "") + ", " + x.d + ")</div>"; });
+  names.forEach((n, i) => { h += "<div>" + (i + 1) + ". " + n + " — " + r.best[n] + " pkt</div>"; });
   return h;
 }
 
@@ -435,7 +518,7 @@ function showScreen(id) {
   doShow(id);
 }
 function doShow(id) {
-  ["scr-main", "scr-multi", "scr-custom", "scr-settings", "scr-msg"].forEach((s) => {
+  ["scr-main", "scr-multi", "scr-custom", "scr-stats", "scr-settings", "scr-msg"].forEach((s) => {
     document.getElementById(s).hidden = (s !== id);
   });
   const rec = document.getElementById("records");
@@ -510,6 +593,7 @@ function drawMascot(t) {
   const blink = (t % 4) < 0.15;
   if (blink) R(bx + 8, by - 52 + ey, 12, 3, bodyPal().eye);
   else { R(bx + 8, by - 56 + ey, 12, 12, bodyPal().eye); R(bx + 11 + ex, by - 53 + ey, 4, 4, bodyPal().eye === "#ffffff" ? "#000000" : "#ffffff"); }
+  drawGlasses(mctx, bx + 14, by - 56 + ey, 2, glasses);
   R(bx - 30, by - 54, 22, 9, "#ff8800");            // dziób górny w lewo
   if (kwa) {
     R(bx - 30, by - 41, 22, 9, "#e07b00");          // dziób dolny otwarty
@@ -541,6 +625,7 @@ function newGame(m) {
   if (mode === "coop") players.push(mkPlayer("Gęś 2", 150, "ShiftRight"));
   players[0].tag = nick || (mode === "coop" ? "P1" : null);
   if (P2()) P2().tag = "P2";
+  runBugs = 0;
   level = 1; score = 0; levelBugs = 0;
   startTime = performance.now();
   elapsed = 0;
@@ -564,31 +649,46 @@ function setupLevel() {
   if (P2()) { P2().x = 150; P2().y = 500; }
   players.forEach((p) => { if (p.dead) { p.dead = false; p.hp = 60; } else p.hp = Math.min(100, p.hp + 25); p.quackCd = 0; });
   levelBugs = 0;
-  poisons = [
-    { x: 260, y: 180, r: 42 },
-    { x: 540, y: 420, r: 48 },
-    { x: 340, y: 470, r: 36 },
-  ];
-  if (level >= 2) poisons.push({ x: 620, y: 300, r: 40 });
-  if (level >= 3) poisons.push({ x: 150, y: 220, r: 36 });
-  walls = [
-    { x: 0, y: 0, w: 800, h: 16 },
-    { x: 0, y: 584, w: 800, h: 16 },
-    { x: 0, y: 0, w: 16, h: 600 },
-    { x: 784, y: 0, w: 16, h: 600 },
-    { x: 180, y: 120, w: 200, h: 20 },
-    { x: 480, y: 220, w: 20, h: 180 },
-    { x: 140, y: 340, w: 220, h: 20 },
-  ];
-  if (level >= 3) walls.push({ x: 420, y: 420, w: 180, h: 20 });
-  enemies = [mkEnemy("sanit", 500, 130)];
-  if (level >= 2) enemies.push(mkEnemy("ghost", 620, 400));
-  if (level >= 3) enemies.push(mkEnemy("boss", 400, 300));
+  genLevel(level);
   bugs = [];
   for (let i = 0; i < 5; i++) spawnBug();
   quackFx = 0; shakeT = 0;
   levelMsg = 2.5;
   updateHUD();
+}
+
+// losowy układ: ściany omijają start i drzwi, trucizna i wrogowie rosną z poziomem
+function clearOf(px, py, pad) {
+  if (px < 240 && py > 400) return false;                    // start
+  if (px > 300 - pad && px < 500 + pad && py < 140 + pad) return false; // drzwi
+  return true;
+}
+function genLevel(n) {
+  walls = [
+    { x: 0, y: 0, w: 800, h: 16 },
+    { x: 0, y: 584, w: 800, h: 16 },
+    { x: 0, y: 0, w: 16, h: 600 },
+    { x: 784, y: 0, w: 16, h: 600 },
+  ];
+  const segs = 1 + n; // 2..6 ścian
+  let guard = 0;
+  while (walls.length < 4 + segs && guard++ < 80) {
+    const horiz = Math.random() < 0.6;
+    const w = horiz ? Math.round(rand(120, 260)) : 20;
+    const h = horiz ? 20 : Math.round(rand(100, 220));
+    const x = Math.round(rand(60, 720 - w)), y = Math.round(rand(80, 500 - h));
+    if (!clearOf(x + w / 2, y + h / 2, 60)) continue;
+    walls.push({ x, y, w, h });
+  }
+  poisons = [];
+  guard = 0;
+  while (poisons.length < 2 + n && guard++ < 80) {
+    const p = { x: Math.round(rand(80, 720)), y: Math.round(rand(100, 520)), r: Math.round(rand(32, 50)) };
+    if (!clearOf(p.x, p.y, p.r + 20)) continue;
+    poisons.push(p);
+  }
+  const kinds = n === 1 ? ["sanit"] : n === 2 ? ["sanit", "ghost"] : n === 3 ? ["sanit", "sanit", "ghost"] : n === 4 ? ["sanit", "ghost", "boss"] : ["sanit", "ghost", "ghost", "boss"];
+  enemies = kinds.map((k, i) => mkEnemy(k, 420 + (i % 2) * 180, 110 + i * 90));
 }
 
 function spawnBug() {
@@ -622,10 +722,13 @@ function tryTrap(p) {
 }
 
 function togglePause() {
-  if (mode === "net-host" || mode === "net-guest") return; // pauza tylko lokalnie
   if (state === "gra") {
     state = "pauza";
-    showMsg("PAUZA", "Poziom " + level + "/" + MAX_LEVEL + " (" + (mode === "coop" ? "2 graczy" : "solo") + "). Odpocznij, gęsi.", "Kontynuuj", true);
+    showMsg("PAUZA", "Poziom " + level + "/" + MAX_LEVEL + " (" + (mode === "coop" ? "2 graczy" : mode === "solo" ? "solo" : "online") + "). Odpocznij, gęsi.", "Kontynuuj", true);
+    const er = document.getElementById("endRow");
+    if (er) er.style.display = "none";
+    const bb = document.getElementById("recBanner");
+    if (bb) bb.textContent = "";
   } else if (state === "pauza") {
     state = "gra";
     overlay.classList.add("hidden");
@@ -765,6 +868,7 @@ function update(dt) {
         const bc = center(bugs[i]);
         bugs.splice(i, 1);
         levelBugs++;
+        runBugs++;
         score += 10;
         p.hp = Math.min(100, p.hp + 6);
         p.chomp = 0.25;
@@ -873,6 +977,60 @@ function movePlayer(p, dx, dy, dt, forceRun) {
   moveWithWalls(p, dx * 170 * running * dt, dy * 170 * running * dt);
 }
 
+// финальная фишка: 1-2 крутые гуси + stata
+function drawEndArt(list) {
+  const cv = document.getElementById("endart");
+  if (!cv || !cv.getContext) return;
+  const g = cv.getContext("2d");
+  const pal = bodyPal();
+  g.clearRect(0, 0, 300, 170);
+  const who = (list && list.length ? list : [{ dead: false }]).slice(0, 2);
+  who.forEach((pl, i) => {
+    const ox = who.length === 1 ? 105 : 30 + i * 140, oy = 30;
+    const R = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(x, y, w, h); };
+    if (!pl.dead) { // iskry
+      R(ox - 22, oy + 10, 4, 12, "#ffff00"); R(ox - 26, oy + 14, 12, 4, "#ffff00");
+      R(ox + 108, oy + 60, 4, 12, "#ffff00"); R(ox + 104, oy + 64, 12, 4, "#ffff00");
+    }
+    g.globalAlpha = pl.dead ? 0.4 : 1;
+    R(ox + 20, oy + 118, 12, 14, "#ff8800"); R(ox + 58, oy + 118, 12, 14, "#e07b00");
+    R(ox, oy + 60, 90, 60, pal.base);
+    R(ox, oy + 100, 90, 20, pal.belly);
+    R(ox + 22, oy + 72, 44, 20, pal.wing);
+    R(ox + 8, oy + 22, 30, 46, pal.base);
+    if (BANDANAS[bandana]) R(ox + 5, oy + 52, 36, 10, BANDANAS[bandana]);
+    R(ox - 6, oy - 2, 52, 34, pal.base);
+    R(ox - 30, oy + 8, 26, 9, "#ff8800");
+    drawHat(g, ox + 20, oy - 2, 1.8, hat);
+    if (pl.dead) {
+      R(ox + 6, oy + 6, 10, 10, pal.eye);
+      g.fillStyle = "#fff"; g.font = "bold 20px monospace"; g.textAlign = "center";
+      g.fillText("☠", ox + 45, oy + 130);
+    } else drawGlasses(g, ox + 20, oy + 8, 1.6, "ciemne"); // cool
+    if (pl.tag) { g.fillStyle = "#fff"; g.font = "bold 12px monospace"; g.textAlign = "center"; g.fillText(pl.tag, ox + 45, oy + 148); }
+    g.globalAlpha = 1;
+  });
+}
+function finishScreen(win, bugsN) {
+  const rec = rateRun(win, score, elapsed);
+  saveResult(win, score, elapsed, bugsN);
+  const er = document.getElementById("endRow");
+  if (er) er.style.display = "flex";
+  drawEndArt(players);
+  const es = document.getElementById("endStats");
+  if (es) es.innerHTML = "Poziom: <b>" + level + "/" + MAX_LEVEL + "</b><br>Owady: <b>" + bugsN +
+    "</b><br>Punkty: <b>" + score + "</b><br>Czas: <b>" + fmtTime(elapsed) + "</b>";
+  const bb = document.getElementById("recBanner");
+  if (bb) {
+    const t = [];
+    if (rec.points) t.push("🏆 NOWY REKORD PUNKTOWY!");
+    if (rec.time) t.push("⏱ NOWY REKORD CZASU!");
+    bb.textContent = t.join(" ");
+  }
+  scoreEl.textContent = score;
+  return rec;
+}
+
 function endGame(win) {
   state = win ? "wygrana" : "przegrana";
   if (mode === "net-host") {
@@ -881,19 +1039,17 @@ function endGame(win) {
   if (win) {
     const bonus = Math.max(0, 300 - Math.floor(elapsed) * 2);
     score += bonus;
-    saveRekord(score, level);
     showMsg("WYGRANA! Zemsta dokonana",
-      "Gęś " + (mode === "coop" ? "uciekinierki" : "") + " uciekły ze Zofiówki (3 poziomy).<br>Punkty: <b>" + score + "</b> • Czas: <b>" + timeEl.textContent + "</b>",
+      "Uciekłeś ze Zofiówki (" + MAX_LEVEL + " poziomów).",
       (mode === "net-host" || mode === "net-guest") ? "Do menu" : "Zagraj ponownie", true);
     sndWin();
   } else {
-    saveRekord(score, level);
     showMsg("PRZEGRANA (poziom " + level + ")",
-      "Złapano cię w Zofiówce.<br>Punkty: <b>" + score + "</b>",
+      "Złapano cię w Zofiówce.",
       (mode === "net-host" || mode === "net-guest") ? "Do menu" : "Spróbuj ponownie", true);
     sndHurt();
   }
-  scoreEl.textContent = score;
+  finishScreen(win, runBugs);
 }
 
 function drawEnemy(e) {
@@ -995,9 +1151,10 @@ function drawPlayer(p) {
   ctx.fillStyle = beakC;
   ctx.fillRect(px + (p.dir > 0 ? 22 : -6), py + 4, 6, 4);
   if (open) ctx.fillRect(px + (p.dir > 0 ? 22 : -6), py + 8, 6, 3);
-  // oko
+  // oko + okulary
   ctx.fillStyle = pal.eye;
   ctx.fillRect(px + (p.dir > 0 ? 17 : 1), py + 2, 3, 3);
+  drawGlasses(ctx, px + (p.dir > 0 ? 18 : 4), py + 2, 1, glasses);
   // pasek HP + tag
   ctx.fillStyle = "#000";
   ctx.fillRect(px - 2, py - 8, 26, 5);
@@ -1237,6 +1394,10 @@ document.getElementById("btnSingle").addEventListener("click", uiClick(() => new
 document.getElementById("btnCoop").addEventListener("click", uiClick(() => newGame("coop")));
 document.getElementById("btnMulti").addEventListener("click", uiClick(() => { showScreen("scr-multi"); netMsg(""); refreshRooms(); }));
 document.getElementById("btnCustom").addEventListener("click", uiClick(() => showScreen("scr-custom")));
+document.getElementById("btnStats").addEventListener("click", uiClick(() => {
+  document.getElementById("statsBox").innerHTML = statsHTML();
+  showScreen("scr-stats");
+}));
 document.getElementById("btnRefresh").addEventListener("click", () => refreshRooms());
 document.getElementById("btnRoomPub").addEventListener("click", () => {
   const ws = ensureWs();
@@ -1259,7 +1420,7 @@ document.getElementById("btnNetStart").addEventListener("click", uiClick(() => {
   players = [mkPlayer("Host", 80, "ShiftLeft"), mkPlayer("Gość", 150, "ShiftRight")];
   players[0].tag = (net.names[0] || "Host").slice(0, 12);
   players[1].tag = (net.names[1] || "Gość").slice(0, 12);
-  level = 1; score = 0; levelBugs = 0;
+  level = 1; score = 0; levelBugs = 0; runBugs = 0;
   startTime = performance.now();
   elapsed = 0;
   netCountdown = 3.2;
@@ -1319,10 +1480,12 @@ function ensureWs() {
     }
     else if (m.t === "over" && mode === "net-guest") {
       score = m.score || 0;
+      state = m.win ? "wygrana" : "przegrana";
       showMsg(m.win ? "WYGRANA! Zemsta dokonana" : "PRZEGRANA",
-        (m.win ? "Uciekliście ze Zofiówki!" : "Złapano was w Zofiówce.") + "<br>Punkty: <b>" + score + "</b>",
+        m.win ? "Uciekliście ze Zofiówki!" : "Złapano was w Zofiówce.",
         "Do menu", true);
-      scoreEl.textContent = score;
+      finishScreen(m.win, 0);
+      if (m.win) sndWin(); else sndHurt();
     }
     else if (m.t === "state") {
       // pierwsza klatka wciąga gościa do gry (tryb ustawia applyState)
@@ -1458,7 +1621,12 @@ document.getElementById("chkMusic").addEventListener("change", (e) => {
   saveSettings();
 });
 document.getElementById("btnWipe").addEventListener("click", () => {
-  try { localStorage.removeItem("gesi_rekordy"); } catch (e) {}
+  try { localStorage.removeItem(REC_KEY); } catch (e) {}
+  recordsEl.innerHTML = rekordyHTML();
+});
+document.getElementById("btnWipe2").addEventListener("click", () => {
+  try { localStorage.removeItem(REC_KEY); } catch (e) {}
+  document.getElementById("statsBox").innerHTML = statsHTML();
   recordsEl.innerHTML = rekordyHTML();
 });
 document.getElementById("sensRange").addEventListener("input", (e) => {
@@ -1475,12 +1643,14 @@ function currentVal(tab) {
   if (tab === "duck") return bodyColor;
   if (tab === "scarf") return bandana;
   if (tab === "hat") return hat;
+  if (tab === "glasses") return glasses;
   return shoes;
 }
 function setVal(tab, v) {
   if (tab === "duck" && BODIES[v]) bodyColor = v;
   else if (tab === "scarf" && BANDANAS.hasOwnProperty(v)) bandana = v;
   else if (tab === "hat" && HATS.indexOf(v) >= 0) hat = v;
+  else if (tab === "glasses" && GLASSES.indexOf(v) >= 0) glasses = v;
   else if (tab === "shoes" && SHOES.hasOwnProperty(v)) shoes = v;
   else return;
   saveSettings();
@@ -1565,13 +1735,14 @@ document.getElementById("btnRandom").addEventListener("click", () => {
   hat = HATS[Math.floor(Math.random() * HATS.length)];
   shoes = SHOE_KEYS[Math.floor(Math.random() * SHOE_KEYS.length)];
   bodyColor = BODY_KEYS[Math.floor(Math.random() * BODY_KEYS.length)];
+  glasses = GLASSES[Math.floor(Math.random() * GLASSES.length)];
   syncPickers();
   syncSettingsUI();
   saveSettings();
   sndEat();
 });
 document.getElementById("btnClearLook").addEventListener("click", () => {
-  bandana = "none"; hat = "none"; shoes = "none"; bodyColor = "white";
+  bandana = "none"; hat = "none"; shoes = "none"; bodyColor = "white"; glasses = "none";
   syncPickers();
   syncSettingsUI();
   saveSettings();

@@ -8,8 +8,8 @@ Kai Antos (fabuła), Mykhailo Hasenko (programowanie/UI).
 
 ## O co chodzi
 Budzisz się jako gęś w opuszczonym psychiatryku „Zofiówka” w Otwocku.
-Poziomy **1–3**: zbieraj owady (8/10/12), unikaj **sanitariuszy** i **trucizny**,
-otwieraj **drzwi** i uciekaj. Wygrana po 3 poziomach, przegrana przy HP 0.
+Poziomy **1–5** (losowy układ): zbieraj owady (8/10/12/14/16), unikaj **sanitariuszy**, **DUCHA** i **trucizny**,
+na 4–5 czeka **BOSS-ordynator**, potem ucieknij przez **drzwi**.
 
 ## Sterowanie
 - **WASD / strzałki** — ruch

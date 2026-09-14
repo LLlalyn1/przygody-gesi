@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Wielkie przygody gęsi — prototyp</title>
-<link rel="icon" href="favicon.svg?v=17" type="image/svg+xml">
-<link rel="stylesheet" href="style.css?v=17">
+<link rel="icon" href="favicon.svg?v=18" type="image/svg+xml">
+<link rel="stylesheet" href="style.css?v=18">
 </head>
 <body>
 <div id="wrap">
@@ -16,7 +16,7 @@
     <span id="hp2wrap" hidden>❤️‍🩹 P2: <b id="hp2">100</b></span>
     <span>🪲 Owady: <b id="bugs">0/8</b></span>
     <span>⭐ Punkty: <b id="score">0</b></span>
-    <span>🏚 Poziom: <b id="level">1/3</b></span>
+    <span>🏚 Poziom: <b id="level">1/5</b></span>
     <span>⏱ Czas: <b id="time">0:00</b></span>
   </div>
   <div id="stage">
@@ -45,6 +45,7 @@
             <button class="big" id="btnSingle">▶ Gra jednoosobowa</button>
             <button class="big" id="btnMulti">👥 Gra wieloosobowa</button>
             <button class="big" id="btnCustom">🎨 Customizacja</button>
+            <button class="big" id="btnStats">📊 Statystyki</button>
             <button class="big" id="btnSettings">⚙ Ustawienia</button>
           </div>
           <div class="screen" id="scr-multi" hidden>
@@ -94,8 +95,18 @@
             <button id="btnWipe">Wyczyść rekordy</button>
             <button class="back" data-back>Wróć</button>
           </div>
+          <div class="screen" id="scr-stats" hidden>
+            <div id="statsBox"></div>
+            <button id="btnWipe2">Wyczyść wszystko</button>
+            <button class="back" data-back>Wróć</button>
+          </div>
           <div class="screen" id="scr-msg" hidden>
+            <div class="endRow" id="endRow">
+              <canvas id="endart" width="300" height="170"></canvas>
+              <div id="endStats"></div>
+            </div>
             <p id="ovText"></p>
+            <div id="recBanner"></div>
             <button class="big" id="btnStart">Zacznij grę</button>
             <button class="big back" id="btnQuit" hidden>Wyjdź do menu</button>
           </div>
@@ -113,6 +124,6 @@
   </div>
   <p id="foot">Zespół Kaczki • klasa 3aTI • Mykhailo Hasenko</p>
 </div>
-<script src="game.js?v=17"></script>
+<script src="game.js?v=18"></script>
 </body>
 </html>

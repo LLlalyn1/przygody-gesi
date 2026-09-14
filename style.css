@@ -72,6 +72,11 @@ button.big { display: block; width: 100%; margin: 8px 0; font-size: 17px; paddin
 button.big.pressed { transform: scale(0.94); background: #f0b429; color: #000; }
 #controls { font-size: 12px; opacity: 0.85; margin: 8px 0 0; }
 .dim { opacity: 0.7; font-size: 13px; }
+.endRow { display: flex; gap: 16px; align-items: center; justify-content: center; margin: 8px 0; }
+#endart { border: 1px solid #30363d; background: #0d1117; width: 300px; height: 170px; }
+#endStats { text-align: left; font-size: 14px; line-height: 1.7; min-width: 170px; }
+#recBanner { font-weight: bold; color: #ffcc00; font-size: 16px; min-height: 22px; animation: fadein 0.4s ease; }
+#statsBox { text-align: left; font-size: 14px; line-height: 1.7; }
 .cat { margin: 8px 0 4px; font-size: 13px; opacity: 0.85; text-transform: uppercase; letter-spacing: 1px; }
 .blocks { display: grid; grid-template-columns: repeat(4, 68px); gap: 10px; justify-content: center; min-height: 60px; margin: 4px 0 8px; }
 .tab { background: #0d1117; border: 2px solid #30363d; color: #e6edf3; padding: 8px 14px; font-size: 14px; font-family: inherit; cursor: pointer; margin: 0; }
