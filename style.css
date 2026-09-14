@@ -75,6 +75,9 @@ button.big { display: block; width: 100%; margin: 8px 0; font-size: 17px; paddin
 button.big.pressed { transform: scale(0.94); background: #f0b429; color: #000; }
 #controls { font-size: 12px; opacity: 0.85; margin: 8px 0 0; }
 .dim { opacity: 0.7; font-size: 13px; }
+.twoCol { display: flex; gap: 24px; justify-content: center; }
+.twoCol > div { text-align: left; }
+.sdate { font-size: 11px; opacity: 0.65; }
 .endRow { display: flex; gap: 16px; align-items: center; justify-content: center; margin: 8px 0; }
 #endart { border: 1px solid #30363d; background: #0d1117; width: 300px; height: 170px; }
 #endStats { text-align: left; font-size: 14px; line-height: 1.7; min-width: 170px; }
@@ -95,14 +98,23 @@ body.touch #set-touch { display: block; }
 body.touch #set-pc { display: none; }
 .row { display: flex; gap: 8px; justify-content: center; margin: 8px 0; }
 #bandana { font-size: 14px; font-family: inherit; background: #0d1117; color: #fff; border: 1px solid #30363d; padding: 6px; }
+#overlayBox.wide { width: 920px; max-width: 98%; }
 #overlayBox.wide .menuBtns { flex: 1; min-width: 0; }
+.customRow { display: flex; gap: 14px; align-items: flex-start; justify-content: center; }
+.customLeft { min-width: 290px; }
+#scr-custom #paperdoll { max-width: 430px; }
+#itemTabs { flex-wrap: wrap; }
 #overlayBox.wide #mascot { display: none; }
 #paperdoll { width: 100%; max-width: 540px; height: auto; border: 1px solid #30363d; background: #0d1117; cursor: pointer; display: block; margin: 0 auto; }
 #overlay.transparent { background: rgba(0,0,0,0.25); pointer-events: none; }
 #overlay.transparent #overlayBox { pointer-events: auto; }
 #overlay.transparent #overlayBox { background: transparent; border: none; width: auto; max-width: 96%; }
-#lobbyPanel { background: #161b22; border: 2px solid #58a6ff; padding: 16px 20px; width: 300px; text-align: center; }
-#lobbyPanel h3 { margin: 0 0 8px; }
+.lobbyRow { display: flex; gap: 12px; justify-content: center; margin: 8px 0; }
+.lobbySide { background: #161b22; border: 1px solid #30363d; padding: 12px 16px; min-width: 200px; text-align: center; }
+.lobbySide h3 { margin: 0 0 8px; }
+#btnNetStart2 { margin-top: 10px; }
+#btnNetStart2.waiting { background: #484f58; animation: pulse-gray 1.6s infinite; }
+@keyframes pulse-gray { 0%,100% { opacity: 0.65; } 50% { opacity: 1; } }
 #overlay.transparent .menuMain { align-items: flex-start; }
 #overlay.transparent .menuSide, #overlay.transparent #controls { display: none; }
 #roomMsg { min-height: 20px; color: #ffcc00; }

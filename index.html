@@ -71,8 +71,20 @@
             <button class="back" data-back>Wróć</button>
           </div>
           <div class="screen" id="scr-custom" hidden>
-            <p><b>Kliknij element gęsi, żeby zmienić:</b></p>
-            <canvas id="paperdoll" width="560" height="340"></canvas>
+            <p><b>Kliknij element gęsi albo wybierz z listy:</b></p>
+            <div class="customRow">
+              <div class="customLeft">
+                <div class="row" id="itemTabs">
+                  <button data-tab="duck" class="tab sel">Kaczka</button>
+                  <button data-tab="scarf" class="tab">Szalik</button>
+                  <button data-tab="hat" class="tab">Kapelusz</button>
+                  <button data-tab="shoes" class="tab">Buty</button>
+                  <button data-tab="glasses" class="tab">Oczy</button>
+                </div>
+                <div class="blocks" id="itemBlocks"></div>
+              </div>
+              <canvas id="paperdoll" width="560" height="340"></canvas>
+            </div>
             <div class="row">
               <button id="btnRandom">🎲 Losuj</button>
               <button id="btnClearLook">Usuń wszystko</button>
@@ -101,16 +113,22 @@
             <button class="back" data-back>Wróć</button>
           </div>
           <div class="screen" id="scr-lobby" hidden>
-            <div id="lobbyPanel">
-              <h3>Poczekalnia <span id="lobbyCode"></span></h3>
-              <div id="lobbyWho"></div>
-              <p class="dim">Biegaj: WASD / strzałki. Wygląd zmienisz obok.</p>
-              <button class="big" id="btnNetStart2" hidden>▶ Start online</button>
-              <div class="row">
+            <div class="lobbyRow">
+              <div class="lobbySide">
+                <h3>Pokój <span id="lobbyCode"></span></h3>
+                <div id="lobbyWho"></div>
+                <div class="row">
+                  <button id="btnSnd" title="Dźwięk">🔊</button>
+                  <button id="btnMus" title="Muzyka">🎵</button>
+                </div>
+              </div>
+              <div class="lobbySide">
                 <button id="btnLook">🎨 Wygląd</button>
                 <button id="btnLeave2">Opuść</button>
               </div>
             </div>
+            <p class="dim">Biegaj: WASD / strzałki.</p>
+            <button class="big waiting" id="btnNetStart2">GOTÓW</button>
           </div>
           <div class="screen" id="scr-msg" hidden>
             <div class="endRow" id="endRow">

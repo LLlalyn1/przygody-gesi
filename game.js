@@ -180,7 +180,7 @@ let exitDoor = { x: 360, y: 16, w: 80, h: 24, open: false };
 let level = 1, startTime = 0, elapsed = 0, score = 0, levelBugs = 0;
 let quackFx = 0, muted = false, musicOn = true;
 let levelMsg = 0, volume = 0.8, volFx = 1, volMusic = 0.8, volMsg = 0, shakeT = 0, poisonSndCd = 0;
-const TRAP_MAX = 5, TRAP_REGEN = 6;
+const TRAP_MAX = 5, TRAP_REGEN = 4;
 let trapStock = TRAP_MAX, trapRegen = 0;
 let mascotT = 0, mascotPeck = 0, sens = 1, vibOn = true;
 let parts = [];
@@ -352,7 +352,13 @@ function sndHurt() { sfx("hurt", 120, 0.25, "sawtooth"); }
 function sndWin() { sfx("win", 523, 0.4, "square"); }
 function sndLevel() { sfx("level", 392, 0.2, "square"); }
 function sndTrap() { sfx("trap", 180, 0.15, "square"); }
-function toggleMute() { muted = !muted; const c = document.getElementById("chkSound"); if (c) c.checked = !muted; }
+function toggleMute() {
+  muted = !muted;
+  const c = document.getElementById("chkSound"); if (c) c.checked = !muted;
+  applyMusicVol();
+  saveSettings();
+  try { updateLobbyPanel(); } catch (e) {}
+}
 function changeVolume(d) {
   volume = Math.max(0, Math.min(1, Math.round((volume + d) * 10) / 10));
   volMsg = 1.5;
@@ -432,9 +438,19 @@ let runBugs = 0;
 function loadRec() {
   try {
     const r = JSON.parse(localStorage.getItem(REC_KEY) || "null");
-    if (r && r.best && r.times && r.life) return r;
+    if (r && r.best && r.times && r.life) {
+      if (!r.log) r.log = [];
+      return r;
+    }
   } catch (e) {}
-  return { best: {}, times: [], life: { games: 0, wins: 0, bugs: 0, time: 0 } };
+  return { best: {}, times: [], log: [], life: { games: 0, wins: 0, bugs: 0, time: 0 } };
+}
+function shortDate() {
+  try {
+    const d = new Date();
+    const p = (x) => String(x).padStart(2, "0");
+    return p(d.getDate()) + "." + p(d.getMonth() + 1) + " " + p(d.getHours()) + ":" + p(d.getMinutes());
+  } catch (e) { return ""; }
 }
 function dispName() { return (nick || "").trim().slice(0, 12) || "Gęś"; }
 // co pobije? liczone PRZED zapisem
@@ -453,6 +469,8 @@ function saveResult(win, s, t, bugs) {
     r.times.sort((a, b) => a.t - b.t);
     r.times = r.times.slice(0, 5);
   }
+  r.log.unshift({ n: nm, s, t: Math.round(t), lvl: level, win: !!win, d: shortDate() });
+  r.log = r.log.slice(0, 20);
   r.life.games++;
   if (win) r.life.wins++;
   r.life.bugs += bugs;
@@ -467,20 +485,30 @@ function fmtTime(t) {
 function bestHTML() {
   const r = loadRec();
   const names = Object.keys(r.best).sort((a, b) => r.best[b] - r.best[a]);
-  let h = "<p><b>TOP5 punkty:</b></p>";
+  let h = "<div class='twoCol'><div><p><b>TOP5 punkty:</b></p>";
   if (!names.length) h += "<p class='dim'>Brak - zagraj!</p>";
   names.slice(0, 5).forEach((n, i) => { h += "<div>" + (i + 1) + ". " + n + " - <b>" + r.best[n] + " pkt</b></div>"; });
-  h += "<p><b>TOP5 czas:</b></p>";
+  h += "</div><div><p><b>TOP5 czas:</b></p>";
   if (!r.times.length) h += "<p class='dim'>Brak - wygraj grę!</p>";
   r.times.slice(0, 5).forEach((x, i) => { h += "<div>" + (i + 1) + ". " + x.n + " - <b>" + fmtTime(x.t) + "</b></div>"; });
+  h += "</div></div>";
   return h;
 }
 function statsHTML() {
   const r = loadRec();
   const L = r.life;
+  const me = dispName();
   let h = "<p><b>📊 Statystyki</b></p>";
   h += "<div>Gry: <b>" + L.games + "</b> • Wygrane: <b>" + L.wins + "</b></div>";
   h += "<div>Owady łącznie: <b>" + L.bugs + "</b> • Czas w grze: <b>" + fmtTime(L.time) + "</b></div>";
+  const mine = (r.log || []).filter((x) => x.n === me).sort((a, b) => b.s - a.s).slice(0, 3);
+  h += "<p><b>Twój TOP 3 (" + me + "):</b></p>";
+  if (!mine.length) h += "<p class='dim'>Brak - zagraj!</p>";
+  mine.forEach((x, i) => { h += "<div>" + (i + 1) + ". <b>" + x.s + " pkt</b> <span class='sdate'>" + x.d + "</span></div>"; });
+  const wins = (r.log || []).filter((x) => x.win).slice(0, 6);
+  h += "<p><b>Kto gdzie kiedy wygrał:</b></p>";
+  if (!wins.length) h += "<p class='dim'>Nikt jeszcze.</p>";
+  wins.forEach((x) => { h += "<div>" + x.n + " - poz." + x.lvl + " <span class='sdate'>" + x.d + "</span></div>"; });
   h += bestHTML();
   return h;
 }
@@ -582,11 +610,25 @@ function drawGoose(g, X, Y, S, L, o) {
   const sc = (L.bandana && L.bandana !== "none") ? BANDANAS[L.bandana] : null;
   if (sc) { R(50, 110, 36, 11, sc); R(75, 120, 8, 10, sc); }
   R(37, 56, 46, 32, fl || pal.base);
-  drawHatFlip(g, X, Y, S, L.hat, o.flip);
+  // kapelusz — te same współrzędne co reszta (nie dryfuje)
+  if (L.hat === "cylinder") {
+    R(33, 50, 34, 5, "#161616"); R(41, 28, 18, 22, "#161616"); R(41, 44, 18, 4, "#888888");
+  } else if (L.hat === "beanie") {
+    R(41, 36, 28, 16, "#d62828"); R(39, 48, 32, 6, "#ffffff"); R(52, 28, 8, 8, "#ffffff");
+  } else if (L.hat === "helmet") {
+    R(37, 34, 38, 16, "#ffb703"); R(37, 48, 38, 4, "#fb8500"); R(47, 37, 8, 4, "#ffffff");
+  }
   const bc = o.beak || "#ff8800";
   R(15, 64, 22, 9, bc);
   if (o.open) R(15, 77, 22, 9, "#e07b00");
-  drawGlassesFlip(g, X, Y, S, L.glasses, o.flip);
+  // okulary — tuż pod kapeluszem, nie na nim
+  if (L.glasses === "ciemne") {
+    R(46, 61, 28, 7, "#111111"); R(46, 66, 28, 2, "#888888");
+  } else if (L.glasses === "kujon") {
+    R(46, 60, 12, 10, "#dddddd"); R(62, 60, 12, 10, "#dddddd");
+    R(49, 63, 3, 3, "#000000"); R(65, 63, 3, 3, "#000000");
+    R(58, 62, 4, 3, "#dddddd");
+  }
 }
 
 // --- maskotka: gęś pyskiem do przycisków (lewo), oczy za myszką, dziobie ---
@@ -626,7 +668,7 @@ function drawMascot(t) {
 
 // --- poziomy ---
 function mkPlayer(name, x, runKey) {
-  return { name, tag: null, x, y: 500, w: 22, h: 22, hp: 100, dir: 1, quackCd: 0, hurtCd: 0, chomp: 0, anim: 0, moving: false, dead: false, runKey };
+  return { name, tag: null, x, y: 500, w: 40, h: 52, hp: 100, dir: 1, quackCd: 0, hurtCd: 0, chomp: 0, anim: 0, moving: false, dead: false, runKey };
 }
 function newGame(m) {
   mode = m;
@@ -682,7 +724,7 @@ function genLevel(n) {
 }
 function blockedAt(px, py) {
   for (const wl of walls) {
-    if (px > wl.x - 12 && px < wl.x + wl.w + 12 && py > wl.y - 12 && py < wl.y + wl.h + 12) return true;
+    if (px > wl.x - 22 && px < wl.x + wl.w + 22 && py > wl.y - 22 && py < wl.y + wl.h + 22) return true;
   }
   for (const p of poisons) {
     if (Math.hypot(px - p.x, py - p.y) < p.r + 14) return true;
@@ -779,7 +821,7 @@ function tryQuack(p) {
 function tryTrap(p) {
   if (!p || state !== "gra" || p.dead || trapStock <= 0 || traps.length >= TRAP_MAX) return;
   trapStock--;
-  traps.push({ x: p.x, y: p.y, w: 18, h: 18, life: 25 });
+  traps.push({ x: Math.round(p.x + 11), y: Math.round(p.y + 17), w: 18, h: 18, life: 25 });
   sndTrap();
 }
 
@@ -906,7 +948,14 @@ function update(dt) {
   shakeT = Math.max(0, shakeT - dt);
   if (trapStock < TRAP_MAX) {
     trapRegen += dt;
-    while (trapStock < TRAP_MAX && trapRegen >= TRAP_REGEN) { trapStock++; trapRegen -= TRAP_REGEN; }
+    while (trapStock < TRAP_MAX && trapRegen >= TRAP_REGEN) {
+      trapStock++; trapRegen -= TRAP_REGEN;
+      const p0 = P1();
+      if (p0 && !p0.dead && state === "gra") {
+        popup(p0.x + 11, p0.y - 14, "+mina", "#ffcc00");
+        beep(880, 0.07, "square");
+      }
+    }
   } else trapRegen = 0;
 
   // --- gracze ---
@@ -1196,16 +1245,16 @@ function drawPlayer(p) {
   if (p.dead) {
     ctx.globalAlpha = 0.4;
     ctx.fillStyle = "#888888";
-    ctx.fillRect(px - 8, py - 12, 38, 34);
+    ctx.fillRect(px, py, 40, 52);
     ctx.globalAlpha = 1;
-    ctx.fillStyle = "#fff"; ctx.font = "12px monospace"; ctx.textAlign = "center";
-    ctx.fillText("☠", px + 11, py);
+    ctx.fillStyle = "#fff"; ctx.font = "14px monospace"; ctx.textAlign = "center";
+    ctx.fillText("☠", px + 20, py + 28);
     return;
   }
   const L = lookOf(p);
   const swing = p.moving ? Math.sin(p.anim) * 3 : 0;
   const idle = p.moving ? 0 : Math.sin(performance.now() / 400) * 1;
-  drawGoose(ctx, px - 11, py - 35 + idle, 0.22, L, {
+  drawGoose(ctx, px, py + idle, 0.2, L, {
     flip: p.dir > 0,
     legSwing: swing,
     open: (p.chomp > 0) || (quackFx > 0 && p === P1()),
@@ -1214,16 +1263,16 @@ function drawPlayer(p) {
   });
   // pasek HP + tag
   ctx.fillStyle = "#000";
-  ctx.fillRect(px - 2, py - 30, 26, 4);
+  ctx.fillRect(px + 7, py - 8, 26, 4);
   ctx.fillStyle = p.hp > 50 ? "#00ff00" : (p.hp > 25 ? "#ffcc00" : "#ff0000");
-  ctx.fillRect(px - 2, py - 30, 26 * (p.hp / 100), 4);
+  ctx.fillRect(px + 7, py - 8, 26 * (p.hp / 100), 4);
   if (p.tag) {
     ctx.font = "bold 11px monospace"; ctx.textAlign = "center";
     const tw = ctx.measureText(p.tag).width + 8;
     ctx.fillStyle = "rgba(0,0,0,0.65)";
-    ctx.fillRect(px + 11 - tw / 2, py - 45, tw, 14);
+    ctx.fillRect(px + 20 - tw / 2, py - 24, tw, 14);
     ctx.fillStyle = "#fff";
-    ctx.fillText(p.tag, px + 11, py - 34);
+    ctx.fillText(p.tag, px + 20, py - 13);
   }
 }
 
@@ -1319,7 +1368,7 @@ function draw() {
   }
 
   if (quackFx > 0 && P1() && !P1().dead) {
-    const cx = P1().x + 11, cy = P1().y + 11;
+    const cx = P1().x + 20, cy = P1().y + 26;
     ctx.strokeStyle = "#ffff00"; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(cx, cy, 34 + (0.4 - quackFx) * 120, 0, Math.PI * 2); ctx.stroke();
     ctx.fillStyle = "#ffff00"; ctx.font = "bold 14px monospace"; ctx.textAlign = "center";
@@ -1505,6 +1554,14 @@ function startNetGame() {
   overlay.classList.remove("transparent");
 }
 document.getElementById("btnNetStart2").addEventListener("click", () => toggleReady());
+document.getElementById("btnSnd").addEventListener("click", () => { toggleMute(); updateLobbyPanel(); });
+document.getElementById("btnMus").addEventListener("click", () => {
+  musicOn = !musicOn;
+  applyMusicVol();
+  saveSettings();
+  const c = document.getElementById("chkMusic"); if (c) c.checked = musicOn;
+  updateLobbyPanel();
+});
 document.getElementById("btnLeave2").addEventListener("click", uiClick(() => { leaveRoom(); showMenu(); }));
 let customBack = "scr-main";
 function enterCustomBack() {
@@ -1684,14 +1741,18 @@ function updateLobbyPanel() {
   }
   const st = document.getElementById("btnNetStart2");
   if (st) {
-    const inRoom = !!net.room;
     const me = playerName();
     const amReady = net.readyNames.indexOf(me) >= 0;
     const both = net.names.length > 1 && net.names.every((n) => net.readyNames.indexOf(n) >= 0);
-    st.hidden = !inRoom;
+    const can = net.names.length > 1;
     st.textContent = both ? "Startujemy…" : (amReady ? "✓ Gotowy! (kliknij, by cofnąć)" : "GOTÓW");
     st.classList.toggle("armed2", amReady);
+    st.classList.toggle("waiting", !can);
   }
+  const bs = document.getElementById("btnSnd");
+  if (bs) bs.textContent = muted ? "🔇" : "🔊";
+  const bm = document.getElementById("btnMus");
+  if (bm) bm.textContent = musicOn ? "🎵" : "🚫";
 }
 function toggleReady() {
   if (!net.ws || net.ws.readyState !== 1 || !net.room) return;
