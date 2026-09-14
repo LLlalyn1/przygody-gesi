@@ -516,15 +516,7 @@ function loadRekordy() { // zgodność wsteczna
   const r = loadRec();
   return Object.keys(r.best).map((n) => ({ s: r.best[n], l: MAX_LEVEL, d: "" }));
 }
-function rekordyHTML() {
-  const r = loadRec();
-  const names = Object.keys(r.best).sort((a, b) => r.best[b] - r.best[a]).slice(0, 5);
-  if (!names.length) return "<p style='opacity:.6'>Brak rekordów - bądź pierwszy!</p>";
-  let h = "<p><b>🏆 Rekordy TOP5:</b></p>";
-  names.forEach((n, i) => { h += "<div>" + (i + 1) + ". " + n + " - " + r.best[n] + " pkt</div>"; });
-  if (r.times.length) h += "<p>⏱ <b>" + r.times[0].n + " - " + fmtTime(r.times[0].t) + "</b></p>";
-  return h;
-}
+function rekordyHTML() { return bestHTML(); }
 
 // --- ekrany menu ---
 function showScreen(id) {
@@ -552,23 +544,6 @@ function showMenu() {
   ovTitle.textContent = "Wielkie przygody gęsi";
   showScreen("scr-main");
   recordsEl.innerHTML = rekordyHTML();
-  requestWrec();
-}
-// --- rekord świata (serwer) ---
-function requestWrec() {
-  const ws = ensureWs(true);
-  if (ws && ws.readyState === 1) {
-    try { ws.send(JSON.stringify({ t: "wrec" })); } catch (e) {}
-  }
-}
-function renderWrec(m) {
-  const box = document.getElementById("worldRec");
-  if (!box) return;
-  let h = "<p><b>🌍 TOP5 świata:</b></p>";
-  const b = m.best || [];
-  if (!b.length) h += "<p class='dim'>Brak - bądź pierwszy!</p>";
-  b.slice(0, 5).forEach((x, i) => { h += "<div>" + (i + 1) + ". " + x.n + " - <b>" + x.s + " pkt</b></div>"; });
-  box.innerHTML = h;
 }
 function showMsg(title, html, btn, quit) {
   overlay.classList.remove("hidden");
@@ -1173,11 +1148,6 @@ function drawEndArt(list) {
 function finishScreen(win, bugsN) {
   const rec = rateRun(win, score, elapsed);
   saveResult(win, score, elapsed, bugsN);
-  try {
-    const ws = ensureWs(true);
-    if (ws && ws.readyState === 1 && score > 0)
-      ws.send(JSON.stringify({ t: "wsubmit", name: dispName(), score, time: Math.round(elapsed * 10) / 10, win }));
-  } catch (e) {}
   const er = document.getElementById("endRow");
   if (er) er.style.display = "flex";
   drawEndArt(players);
@@ -1276,7 +1246,7 @@ function drawPlayer(p) {
   const L = lookOf(p);
   const swing = p.moving ? Math.sin(p.anim) * 3 : 0;
   const idle = p.moving ? 0 : Math.sin(performance.now() / 400) * 1;
-  drawGoose(ctx, px - 10, py - 26 + idle, 0.3, L, {
+  drawGoose(ctx, px - 10, py - 15 + idle, 0.3, L, {
     flip: p.dir > 0,
     legSwing: swing,
     open: (p.chomp > 0) || (quackFx > 0 && p === P1()),
@@ -1285,16 +1255,16 @@ function drawPlayer(p) {
   });
   // pasek HP + tag
   ctx.fillStyle = "#000";
-  ctx.fillRect(px - 2, py - 34, 26, 4);
+  ctx.fillRect(px - 2, py - 12, 26, 4);
   ctx.fillStyle = p.hp > 50 ? "#00ff00" : (p.hp > 25 ? "#ffcc00" : "#ff0000");
-  ctx.fillRect(px - 2, py - 34, 26 * (p.hp / 100), 4);
+  ctx.fillRect(px - 2, py - 12, 26 * (p.hp / 100), 4);
   if (p.tag) {
     ctx.font = "bold 11px monospace"; ctx.textAlign = "center";
     const tw = ctx.measureText(p.tag).width + 8;
     ctx.fillStyle = "rgba(0,0,0,0.65)";
-    ctx.fillRect(px + 11 - tw / 2, py - 50, tw, 14);
+    ctx.fillRect(px + 11 - tw / 2, py - 28, tw, 14);
     ctx.fillStyle = "#fff";
-    ctx.fillText(p.tag, px + 11, py - 39);
+    ctx.fillText(p.tag, px + 11, py - 17);
   }
 }
 
@@ -1449,8 +1419,11 @@ function skillSlot(x, y, icon, frac, key, extra, secs, regen) {
   ctx.strokeRect(x + 0.5, y + 0.5, 43, 43);
   if (frac > 0) { ctx.fillStyle = "rgba(0,0,0,0.65)"; ctx.fillRect(x, y, 44, Math.round(44 * Math.min(1, frac))); }
   if (secs != null && frac > 0) {
-    ctx.fillStyle = "#fff"; ctx.font = "bold 13px monospace"; ctx.textAlign = "center";
-    ctx.fillText(secs, x + 22, y + 27);
+    ctx.font = "bold 17px monospace"; ctx.textAlign = "center";
+    ctx.fillStyle = "#000";
+    ctx.fillText(secs, x + 23, y + 29);
+    ctx.fillStyle = "#ffe14d";
+    ctx.fillText(secs, x + 22, y + 28);
   }
   if (regen != null && regen < 1) {
     ctx.fillStyle = "#238636";
@@ -1469,11 +1442,8 @@ function drawSkills() {
   rows.forEach((p, i) => {
     if (!p) return;
     const y = H - 70 - i * 62;
-    const tag = mode === "net-guest" ? (p === P2() ? "TY" : "HOST") : (p === P2() ? "P2" : "P1");
     const k1 = (mode !== "solo" && p === P2() && mode !== "net-guest") ? "." : "SPACJA";
     const k2 = (mode !== "solo" && p === P2() && mode !== "net-guest") ? "," : "E";
-    ctx.fillStyle = p.dead ? "#555" : "#fff"; ctx.font = "bold 11px monospace"; ctx.textAlign = "left";
-    ctx.fillText(tag, 12, y + 14);
     const cd = (p.quackCd || 0);
     skillSlot(46, y, kwaIcon, cd / 2, k1, null, cd > 0 ? cd.toFixed(1) : null, null);
     skillSlot(102, y, trapIcon, left > 0 ? 0 : 1, k2, "x" + left, null, left >= TRAP_MAX ? 1 : trapRegen / TRAP_REGEN);
@@ -1619,7 +1589,6 @@ function ensureWs(quiet) {
     let m = null;
     try { m = JSON.parse(ev.data); } catch (e) { return; }
     if (m.t === "rooms") renderRooms(m.rooms || []);
-    else if (m.t === "wrec") renderWrec(m);
     else if (m.t === "joined") {
       net.room = m.code; net.you = m.you; net.names = m.players || []; net.priv = !!m.priv;
       net.readyNames = [];
@@ -1676,7 +1645,7 @@ function ensureWs(quiet) {
     }
   };
   net.ws.onclose = () => { net.ws = null; if (state === "menu") netMsg("Rozłączono. Odśwież listę."); };
-  net.ws.onopen = () => { try { if (state === "menu") { requestWrec(); refreshRooms(); } } catch (e) {} };
+  net.ws.onopen = () => { try { if (state === "menu") { refreshRooms(); } } catch (e) {} };
   return net.ws;
 }
 function playerName() {
@@ -1997,6 +1966,12 @@ function miniShoe(g, st) {
     g.fillStyle = st.sole; g.fillRect(14, 27, 16, 3);
   }
 }
+function miniGlass(g, style) {
+  g.fillStyle = "#161b22"; g.fillRect(0, 0, 44, 38);
+  g.fillStyle = "#ffffff"; g.fillRect(10, 8, 24, 16);
+  g.fillStyle = "#000000"; g.fillRect(16, 12, 5, 5);
+  drawGlasses(g, 22, 16, 1.5, style);
+}
 function renderBlocks() {
   const box = document.getElementById("itemBlocks");
   if (!box || typeof document.createElement !== "function") return;
@@ -2008,6 +1983,7 @@ function renderBlocks() {
     Object.keys(BANDANAS).forEach((k) => { if (k !== "none") items.push([k, (g) => miniNeck(g, BANDANAS[k])]); });
   }
   else if (customTab === "hat") HATS.forEach((h) => items.push([h, h === "none" ? null : ((g) => drawHat(g, 22, 30, 1.6, h))]));
+  else if (customTab === "glasses") GLASSES.forEach((k) => items.push([k, k === "none" ? null : ((g) => miniGlass(g, k))]));
   else SHOE_KEYS.forEach((k) => items.push([k, k === "none" ? null : ((g) => miniShoe(g, SHOES[k]))]));
   const cur = currentVal(customTab);
   items.forEach(([val, draw]) => {
